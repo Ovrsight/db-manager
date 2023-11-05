@@ -8,6 +8,7 @@
 - [ ] Ovrsight mysql server <!-- Creating an ovrsight managed Mysql database server -->
 - [ ] Monitoring
 - [ ] Replication
+- [ ] Horizontal scaling
 
 ### CLI client
 - [ ] All the features above
