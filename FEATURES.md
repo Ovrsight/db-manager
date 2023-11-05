@@ -2,9 +2,9 @@
 - [ ] Backup database(s)
   - [ ] Dropbox driver
   - [ ] Google Drive driver
+- [ ] Recovery
 - [ ] Users & privileges management
 - [ ] Configuration
-- [ ] Recovery
 - [ ] Ovrsight mysql server <!-- Creating an ovrsight managed Mysql database server -->
 - [ ] Monitoring
 - [ ] Replication
