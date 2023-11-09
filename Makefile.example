@@ -1,0 +1,7 @@
+HOST = 192.168.64.18
+
+run:
+	env GOOS=linux go build -o cli app/cli/*
+	scp cli ubuntu@$(HOST):/home/ubuntu/cli
+	scp .env ubuntu@$(HOST):/home/ubuntu/.env
+	ssh ubuntu@$(HOST) './cli'
