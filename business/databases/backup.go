@@ -2,10 +2,12 @@ package databases
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"log"
 	"os"
+	"os/exec"
 	"strconv"
 )
 
@@ -53,7 +55,21 @@ func Ping() error {
 	return db.Ping()
 }
 
-func Execute(dbName string) error {
+func Execute(dbName string) ([]byte, error) {
 
-	return nil
+	program, err := exec.LookPath("mysqldump")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	cmd := exec.Command(fmt.Sprintf("%s", program), fmt.Sprintf("-u%s", "root"), fmt.Sprintf("-p%s", ""), "oversight")
+
+	out, err := cmd.Output()
+	if err != nil {
+		cerr := &exec.ExitError{}
+		errors.As(err, &cerr)
+		log.Fatalln(string(cerr.Stderr))
+	}
+
+	return out, nil
 }

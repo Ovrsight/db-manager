@@ -2,4 +2,4 @@
 DRAFT.md
 Makefile
 .env
-bin/cli
+bin
