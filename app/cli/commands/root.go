@@ -12,7 +12,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"google.golang.org/api/option"
 )
@@ -30,11 +29,6 @@ to quickly create a Cobra application.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		envFile := ".env"
-		err := godotenv.Load(envFile)
-		if err != nil {
-			log.Fatalln(err)
-		}
 
 		if err := databases.Ping(); err != nil {
 			log.Fatalln(err)
