@@ -2,11 +2,9 @@ package main
 
 import (
 	"github.com/joho/godotenv"
-	"github.com/nizigama/ovrsight/app/cli/commands"
+	"github.com/nizigama/ovrsight/app/cli/cmd"
 	"log"
 )
-
-const envFile = ".env"
 
 func main() {
 
@@ -15,5 +13,5 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	commands.Execute()
+	cmd.Execute()
 }
