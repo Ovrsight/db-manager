@@ -86,27 +86,33 @@ func ping(cfg dbConfig) error {
 
 func getDriver(driverType storage.StorageDriverType, fileName string) (storage.Storage, error) {
 
+	var storageDriver storage.Storage
+
 	switch driverType {
 	case storage.FileSystemType:
-		fs := &storage.FileSystemDriver{
+		storageDriver = &storage.FileSystemDriver{
 			Filename: fileName,
 		}
 
-		return fs, nil
+		return storageDriver, nil
 	case storage.DropboxType:
-		dpx := &storage.DropboxDriver{
+		storageDriver := &storage.DropboxDriver{
 			Filename: fileName,
 		}
 
-		return dpx, nil
+		return storageDriver, nil
 	case storage.GoogleDriveType:
-		gglD := &storage.GoogleDriveDriver{
+		storageDriver := &storage.GoogleDriveDriver{
 			Filename: fileName,
 		}
 
-		return gglD, nil
+		return storageDriver, nil
 	default:
-		return nil, errors.New("invalid backup storage driver")
+		storageDriver = &storage.FileSystemDriver{
+			Filename: fileName,
+		}
+
+		return storageDriver, nil
 	}
 }
 
