@@ -23,7 +23,7 @@ var _ = Describe("Backup", func() {
 		})
 	})
 
-	Context("with google driver driver", func() {
+	Context("with google drive driver", func() {
 		It("can backup a database", func() {
 			Expect(true).To(BeTrue())
 		})
