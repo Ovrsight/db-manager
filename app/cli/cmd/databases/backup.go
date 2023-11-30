@@ -22,7 +22,7 @@ This tool will help you backup a given database to one or multiple storage provi
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println("databases:backup run")
 
-		return databases.Backup(args[0])
+		return databases.Backup(args[0], args[1])
 	},
 }
 

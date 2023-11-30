@@ -1,21 +1,16 @@
 package databases
 
 import (
-	"bytes"
-	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
-	"google.golang.org/api/drive/v3"
-	"google.golang.org/api/option"
-	"io"
+	"github.com/nizigama/ovrsight/foundation/storage"
 	"log"
-	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
+	"time"
 )
 
 type dbConfig struct {
@@ -24,115 +19,46 @@ type dbConfig struct {
 	user     string
 	password string
 	database string
+	dsn      string
 }
 
 var (
 	config dbConfig
 )
 
-func Backup(storageDriver string) error {
+func Backup(databaseName, storageDriver string) error {
 
-	if err := ping(); err != nil {
+	cfg := configure(databaseName)
+
+	if err := ping(cfg); err != nil {
 		return err
 	}
 
-	bckpData, err := dumpData()
+	bckpData, err := dumpData(cfg)
 	if err != nil {
 		return err
 	}
 
-	switch storageDriver {
-	case "filesystem":
-		file, err := os.Create("backup.sql")
-		if err != nil {
-			return err
-		}
+	fileName := fmt.Sprintf("%d_%s.sql", time.Now().UnixNano(), databaseName)
 
-		defer file.Close()
+	driver, err := getDriver(storage.StorageDriverType(storageDriver), fileName)
+	if err != nil {
+		return err
+	}
 
-		_, err = file.Write(bckpData)
-		if err != nil {
-			return err
-		}
-	case "dropbox":
-		dropboxBuf := bytes.Buffer{}
-		_, err = dropboxBuf.Write(bckpData)
-		if err != nil {
-			return err
-		}
-
-		req, err := http.NewRequest("POST", "https://content.dropboxapi.com/2/files/upload", &dropboxBuf)
-		if err != nil {
-			return err
-		}
-
-		token := os.Getenv("DROPBOX_ACCESS_TOKEN")
-		params := map[string]interface{}{
-			"autorename":      false,
-			"mode":            "add",
-			"mute":            false,
-			"path":            "/database/backups/oversight.backup.sql",
-			"strict_conflict": false,
-		}
-		parameters, err := json.Marshal(params)
-		if err != nil {
-			return err
-		}
-
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-		req.Header.Set("Content-Type", "application/octet-stream")
-		req.Header.Set("Dropbox-API-Arg", string(parameters))
-
-		res, err := http.DefaultClient.Do(req)
-		if err != nil {
-			return err
-		}
-
-		if res.StatusCode != 200 {
-			data, _ := io.ReadAll(res.Body)
-			return errors.New(string(data))
-		}
-	case "googledrive":
-		jsonData := os.Getenv("GOOGLE_DRIVE_API_CREDENTIALS_JSON")
-		jsonCreds := []byte(jsonData)
-
-		driveService, err := drive.NewService(context.Background(), option.WithCredentialsJSON(jsonCreds))
-		if err != nil {
-			return err
-		}
-
-		driveFile := &drive.File{
-			Name:    "backup.sql",
-			Parents: []string{"1auxyWbwVpzVZ_XJdi9ySsl8qD4MS95pO"},
-		}
-
-		googleDriveBuf := bytes.Buffer{}
-		_, err = googleDriveBuf.Write(bckpData)
-		if err != nil {
-			return err
-		}
-
-		f, err := driveService.Files.Create(driveFile).Media(&googleDriveBuf).Do()
-		if err != nil {
-			return err
-		}
-
-		if f.ServerResponse.HTTPStatusCode != 200 {
-			return errors.New("failed uploading backup to google drive folder")
-		}
-	default:
-		return errors.New("invalid storage driver")
+	err = driver.Upload(bckpData)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func configure() (dbConfig, string) {
+func configure(databaseName string) dbConfig {
 	host := os.Getenv("DB_HOST")
 	p := os.Getenv("DB_PORT")
 	user := os.Getenv("DB_USER")
 	password := os.Getenv("DB_PASSWORD")
-	database := os.Getenv("DB_DATABASE")
 
 	port, _ := strconv.Atoi(p)
 
@@ -141,17 +67,16 @@ func configure() (dbConfig, string) {
 		port:     port,
 		user:     user,
 		password: password,
-		database: database,
+		database: databaseName,
+		dsn:      fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", user, password, host, port, databaseName),
 	}
 
-	return config, fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", config.user, config.password, config.host, config.port, config.database)
+	return config
 }
 
-func ping() error {
+func ping(cfg dbConfig) error {
 
-	_, dsn := configure()
-
-	db, err := sql.Open("mysql", dsn)
+	db, err := sql.Open("mysql", cfg.dsn)
 	if err != nil {
 		return err
 	}
@@ -159,14 +84,38 @@ func ping() error {
 	return db.Ping()
 }
 
-func dumpData() ([]byte, error) {
+func getDriver(driverType storage.StorageDriverType, fileName string) (storage.Storage, error) {
+
+	switch driverType {
+	case storage.FileSystemType:
+		fs := &storage.FileSystemDriver{
+			Filename: fileName,
+		}
+
+		return fs, nil
+	case storage.DropboxType:
+		dpx := &storage.DropboxDriver{
+			Filename: fileName,
+		}
+
+		return dpx, nil
+	case storage.GoogleDriveType:
+		gglD := &storage.GoogleDriveDriver{
+			Filename: fileName,
+		}
+
+		return gglD, nil
+	default:
+		return nil, errors.New("invalid backup storage driver")
+	}
+}
+
+func dumpData(cfg dbConfig) ([]byte, error) {
 
 	program, err := exec.LookPath("mysqldump")
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	cfg, _ := configure()
 
 	cmd := exec.Command(fmt.Sprintf("%s", program), fmt.Sprintf("-u%s", cfg.user), fmt.Sprintf("-p%s", cfg.password), cfg.database)
 
