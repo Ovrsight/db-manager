@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/stretchr/testify/mock"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
 	"os"
@@ -11,6 +12,10 @@ import (
 
 type GoogleDriveDriver struct {
 	Filename string
+}
+
+type GoogleDriveDriverMock struct {
+	mock.Mock
 }
 
 func (gglD *GoogleDriveDriver) Upload(data []byte) error {
@@ -45,4 +50,10 @@ func (gglD *GoogleDriveDriver) Upload(data []byte) error {
 	}
 
 	return nil
+}
+
+func (gglD *GoogleDriveDriverMock) Upload(data []byte) error {
+
+	args := gglD.Called(data)
+	return args.Error(0)
 }

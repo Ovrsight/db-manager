@@ -2,13 +2,11 @@ package databases
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/nizigama/ovrsight/foundation/databases"
 	"github.com/nizigama/ovrsight/foundation/storage"
-	"log"
 	"os"
-	"os/exec"
 	"strconv"
 	"time"
 )
@@ -22,31 +20,58 @@ type dbConfig struct {
 	dsn      string
 }
 
+type Backer struct {
+	StorageDriver storage.Storage
+	BackupMethod  databases.BackupMethod
+	DatabaseName  string
+	Filename      string
+}
+
 var (
 	config dbConfig
 )
 
-func Backup(databaseName, storageDriver string) error {
+func NewBacker(storageDriver, databaseName string) (*Backer, error) {
+
+	filename := fmt.Sprintf("%d_%s.sql", time.Now().UnixNano(), databaseName)
+
+	driver, err := getDriver(storage.StorageDriverType(storageDriver), filename)
+	if err != nil {
+		return nil, err
+	}
 
 	cfg := configure(databaseName)
+
+	method := &databases.MysqlDumper{
+		Host:     cfg.host,
+		Port:     cfg.port,
+		User:     cfg.user,
+		Password: cfg.password,
+		Database: cfg.database,
+	}
+
+	return &Backer{
+		StorageDriver: driver,
+		BackupMethod:  method,
+		DatabaseName:  databaseName,
+		Filename:      filename,
+	}, nil
+}
+
+func (bckr *Backer) Backup() error {
+
+	cfg := configure(bckr.DatabaseName)
 
 	if err := ping(cfg); err != nil {
 		return err
 	}
 
-	bckpData, err := dumpData(cfg)
+	bckpData, err := bckr.BackupMethod.Generate()
 	if err != nil {
 		return err
 	}
 
-	fileName := fmt.Sprintf("%d_%s.sql", time.Now().UnixNano(), databaseName)
-
-	driver, err := getDriver(storage.StorageDriverType(storageDriver), fileName)
-	if err != nil {
-		return err
-	}
-
-	err = driver.Upload(bckpData)
+	err = bckr.StorageDriver.Upload(bckpData)
 	if err != nil {
 		return err
 	}
@@ -114,23 +139,4 @@ func getDriver(driverType storage.StorageDriverType, fileName string) (storage.S
 
 		return storageDriver, nil
 	}
-}
-
-func dumpData(cfg dbConfig) ([]byte, error) {
-
-	program, err := exec.LookPath("mysqldump")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	cmd := exec.Command(fmt.Sprintf("%s", program), fmt.Sprintf("-u%s", cfg.user), fmt.Sprintf("-p%s", cfg.password), cfg.database)
-
-	out, err := cmd.Output()
-	if err != nil {
-		execErr := &exec.ExitError{}
-		errors.As(err, &execErr)
-		log.Fatalln(string(execErr.Stderr))
-	}
-
-	return out, nil
 }

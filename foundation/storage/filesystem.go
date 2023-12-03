@@ -2,12 +2,17 @@ package storage
 
 import (
 	"fmt"
+	"github.com/stretchr/testify/mock"
 	"os"
 	"strings"
 )
 
 type FileSystemDriver struct {
 	Filename string
+}
+
+type FileSystemDriverMock struct {
+	mock.Mock
 }
 
 func (fs *FileSystemDriver) Upload(data []byte) error {
@@ -43,4 +48,10 @@ func (fs *FileSystemDriver) Upload(data []byte) error {
 	}
 
 	return nil
+}
+
+func (fs *FileSystemDriverMock) Upload(data []byte) error {
+
+	args := fs.Called(data)
+	return args.Error(0)
 }

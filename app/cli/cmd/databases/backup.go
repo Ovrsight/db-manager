@@ -2,6 +2,7 @@ package databases
 
 import (
 	"github.com/nizigama/ovrsight/business/databases"
+	"github.com/nizigama/ovrsight/foundation/storage"
 	"log"
 
 	"github.com/spf13/cobra"
@@ -55,18 +56,26 @@ $ oversight databases:backup demo_db`,
 
 		return nil
 	},
-	ValidArgs: []string{"filesystem", "dropbox", "googledrive"},
+	ValidArgs: []string{
+		string(storage.FileSystemType),
+		string(storage.DropboxType),
+		string(storage.GoogleDriveType),
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var databaseName string
-		storageDriver := "filesystem"
-
-		databaseName = args[0]
+		databaseName := args[0]
+		storageDriver := string(storage.FileSystemType)
 
 		if len(args) == 2 {
+
 			storageDriver = args[1]
 		}
 
-		err := databases.Backup(databaseName, storageDriver)
+		backer, err := databases.NewBacker(storageDriver, databaseName)
+		if err != nil {
+			return err
+		}
+
+		err = backer.Backup()
 		if err != nil {
 			return err
 		}

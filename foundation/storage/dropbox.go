@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/stretchr/testify/mock"
 	"io"
 	"net/http"
 	"os"
@@ -12,6 +13,10 @@ import (
 
 type DropboxDriver struct {
 	Filename string
+}
+
+type DropboxDriverMock struct {
+	mock.Mock
 }
 
 func (dbx *DropboxDriver) Upload(data []byte) error {
@@ -56,4 +61,10 @@ func (dbx *DropboxDriver) Upload(data []byte) error {
 	}
 
 	return nil
+}
+
+func (dbx *DropboxDriverMock) Upload(data []byte) error {
+
+	args := dbx.Called(data)
+	return args.Error(0)
 }
