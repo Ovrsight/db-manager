@@ -90,6 +90,7 @@ func (xb *XtraBackup) Generate() ([]byte, error) {
 	}
 
 	_ = xtraBackupProgram
+	// TODO: work on creating anc compressing backup
 
 	// create full backup
 	// prepare backup
@@ -205,6 +206,14 @@ func (xb *XtraBackup) installXtraBackup(mysqlVersion, ubuntuVersion string) erro
 	}
 
 	// install tar & gz if they are not already installed
+	cmd = exec.Command(fmt.Sprintf("%s", aptProgram), "tar", "gzip")
+
+	out, err = cmd.Output()
+	if err != nil {
+		execErr := &exec.ExitError{}
+		errors.As(err, &execErr)
+		log.Fatalln(string(execErr.Stderr))
+	}
 
 	return nil
 }
