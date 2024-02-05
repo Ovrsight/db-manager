@@ -11,15 +11,15 @@ import (
 	"os"
 )
 
-type DropboxDriver struct {
+type Dropbox struct {
 	Filename string
 }
 
-type DropboxDriverMock struct {
+type DropboxMock struct {
 	mock.Mock
 }
 
-func (dbx *DropboxDriver) Upload(data []byte) error {
+func (dbx *Dropbox) Save(data []byte) error {
 
 	dropboxBuf := bytes.Buffer{}
 	_, err := dropboxBuf.Write(data)
@@ -63,7 +63,7 @@ func (dbx *DropboxDriver) Upload(data []byte) error {
 	return nil
 }
 
-func (dbx *DropboxDriverMock) Upload(data []byte) error {
+func (dbx *DropboxMock) Save(data []byte) error {
 
 	args := dbx.Called(data)
 	return args.Error(0)

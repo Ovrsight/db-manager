@@ -1,13 +1,34 @@
 package storage
 
-type Storage interface {
-	Upload([]byte) error
+type Engine interface {
+	Save([]byte) error
 }
 
-type DriverType string
+type EngineType string
 
 const (
-	FileSystemType  DriverType = "filesystem"
-	DropboxType     DriverType = "dropbox"
-	GoogleDriveType DriverType = "google_drive"
+	FileSystemType  EngineType = "filesystem"
+	DropboxType     EngineType = "dropbox"
+	GoogleDriveType EngineType = "google_drive"
 )
+
+func GetStorageEngine(engineType EngineType, fileName string) Engine {
+	switch engineType {
+	case FileSystemType:
+		return &FileSystem{
+			Filename: fileName,
+		}
+	case GoogleDriveType:
+		return &GoogleDrive{
+			Filename: fileName,
+		}
+	case DropboxType:
+		return &Dropbox{
+			Filename: fileName,
+		}
+	default:
+		return &FileSystem{
+			Filename: fileName,
+		}
+	}
+}

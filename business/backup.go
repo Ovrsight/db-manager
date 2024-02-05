@@ -12,7 +12,7 @@ type BackupManager struct {
 	Database      string
 	Filename      string
 	BackupMethod  methods.BackupMethod
-	StorageDriver storage.DriverType
+	StorageDriver storage.EngineType
 }
 
 func GetSupportedStorageDrivers() []string {
@@ -31,7 +31,7 @@ func GetDefaultStorageDriver() string {
 func Init(database string, storageDriver string) (*BackupManager, error) {
 	filename := fmt.Sprintf("%d_%s.sql", time.Now().UnixNano(), database)
 
-	var driver storage.DriverType
+	var driver storage.EngineType
 
 	switch storageDriver {
 	case "filesystem":
@@ -68,11 +68,13 @@ func (manager *BackupManager) Backup() error {
 		return err
 	}
 
-	fmt.Println(string(data), len(data))
+	storageEngine := storage.GetStorageEngine(manager.StorageDriver, manager.Filename)
 
 	// upload backup bytes
+	err = storageEngine.Save(data)
 
 	// backup method cleaner
+	_ = manager.BackupMethod.Clean()
 
 	return nil
 }

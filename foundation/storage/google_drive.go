@@ -10,15 +10,15 @@ import (
 	"os"
 )
 
-type GoogleDriveDriver struct {
+type GoogleDrive struct {
 	Filename string
 }
 
-type GoogleDriveDriverMock struct {
+type GoogleDriveMock struct {
 	mock.Mock
 }
 
-func (gglD *GoogleDriveDriver) Upload(data []byte) error {
+func (gglD *GoogleDrive) Save(data []byte) error {
 
 	jsonData := os.Getenv("GOOGLE_DRIVE_API_CREDENTIALS_JSON")
 	jsonCreds := []byte(jsonData)
@@ -52,7 +52,7 @@ func (gglD *GoogleDriveDriver) Upload(data []byte) error {
 	return nil
 }
 
-func (gglD *GoogleDriveDriverMock) Upload(data []byte) error {
+func (gglD *GoogleDriveMock) Save(data []byte) error {
 
 	args := gglD.Called(data)
 	return args.Error(0)

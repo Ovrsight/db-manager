@@ -7,15 +7,15 @@ import (
 	"strings"
 )
 
-type FileSystemDriver struct {
+type FileSystem struct {
 	Filename string
 }
 
-type FileSystemDriverMock struct {
+type FileSystemMock struct {
 	mock.Mock
 }
 
-func (fs *FileSystemDriver) Upload(data []byte) error {
+func (fs *FileSystem) Save(data []byte) error {
 
 	filesystemPath := os.Getenv("FILESYSTEM_PATH")
 
@@ -50,7 +50,7 @@ func (fs *FileSystemDriver) Upload(data []byte) error {
 	return nil
 }
 
-func (fs *FileSystemDriverMock) Upload(data []byte) error {
+func (fs *FileSystemMock) Save(data []byte) error {
 
 	args := fs.Called(data)
 	return args.Error(0)
