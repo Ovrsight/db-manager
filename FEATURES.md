@@ -1,16 +1,15 @@
 # Features
 - [ ] Backup database(s)
-  - [ ] 1 db -> 1 storage: huge memory footprint
-    - [ ] tests
+  - [x] 1 db -> 1 storage: huge memory footprint
   - [ ] 1 db -> 1 storage: small memory footprint
     - [ ] tests
   - [ ] bin logs
   - [ ] 1 db -> multiple backup methods
-    - [ ] my_dumper
-    - [ ] percona extra_backup
-  - [ ] 1 db -> multiple storage
+    - [ ] my_dumper with tests
+    - [ ] percona extra_backup with tests
+  - [ ] 1 db -> multiple storage at the same time
     - [ ] tests
-  - [ ] multiple db -> multiple storage
+  - [ ] multiple db -> multiple storage at the same time
     - [ ] tests
 - [ ] Recovery
 - [ ] Users & privileges management
