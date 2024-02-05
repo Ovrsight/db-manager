@@ -1,4 +1,4 @@
-package databases
+package methods
 
 import (
 	"errors"

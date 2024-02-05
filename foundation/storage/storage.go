@@ -4,10 +4,10 @@ type Storage interface {
 	Upload([]byte) error
 }
 
-type StorageDriverType string
+type DriverType string
 
 const (
-	FileSystemType  StorageDriverType = "filesystem"
-	DropboxType     StorageDriverType = "dropbox"
-	GoogleDriveType StorageDriverType = "googledrive"
+	FileSystemType  DriverType = "filesystem"
+	DropboxType     DriverType = "dropbox"
+	GoogleDriveType DriverType = "google_drive"
 )

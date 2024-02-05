@@ -1,7 +1,14 @@
 # Features
 - [ ] Backup database(s)
-  - [ ] Dropbox driver
-  - [ ] Google Drive driver
+  - [ ] 1 db -> 1 storage: huge memory footprint
+    - [ ] tests
+  - [ ] 1 db -> 1 storage: small memory footprint
+    - [ ] tests
+  - [ ] 1 db -> multiple backup methods
+  - [ ] 1 db -> multiple storage
+    - [ ] tests
+  - [ ] multiple db -> multiple storage
+    - [ ] tests
 - [ ] Recovery
 - [ ] Users & privileges management
 - [ ] Configuration
