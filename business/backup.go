@@ -28,8 +28,8 @@ func GetDefaultStorageDriver() string {
 	return string(storage.FileSystemType)
 }
 
-func Init(databaseName string, storageDriver string) *BackupManager {
-	filename := fmt.Sprintf("%d_%s.sql", time.Now().UnixNano(), databaseName)
+func Init(database string, storageDriver string) (*BackupManager, error) {
+	filename := fmt.Sprintf("%d_%s.sql", time.Now().UnixNano(), database)
 
 	var driver storage.DriverType
 
@@ -44,19 +44,31 @@ func Init(databaseName string, storageDriver string) *BackupManager {
 		driver = storage.FileSystemType
 	}
 
-	// initialize backup method
+	mysqlDump := &methods.MysqlDump{
+		Database: database,
+	}
+
+	if err := mysqlDump.Initialize(); err != nil {
+		return nil, err
+	}
 
 	return &BackupManager{
-		Database:      databaseName,
+		Database:      database,
 		Filename:      filename,
-		BackupMethod:  nil,
+		BackupMethod:  mysqlDump,
 		StorageDriver: driver,
-	}
+	}, nil
 }
 
 func (manager *BackupManager) Backup() error {
 
 	// generate backup bytes
+	data, err := manager.BackupMethod.Generate()
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(string(data), len(data))
 
 	// upload backup bytes
 

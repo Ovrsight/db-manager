@@ -12,11 +12,11 @@ import (
 )
 
 type MysqlDump struct {
+	Database    string
 	host        string
 	port        int
 	user        string
 	password    string
-	database    string
 	programPath string
 }
 
@@ -24,10 +24,10 @@ type MysqlDumpMock struct {
 	mock.Mock
 }
 
-func (md *MysqlDump) Initialize(database string) error {
+func (md *MysqlDump) Initialize() error {
 
 	// mysqldump is available
-	_, err := exec.LookPath("mysqldump")
+	programPath, err := exec.LookPath("mysqldump")
 	if err != nil {
 		return err
 	}
@@ -43,7 +43,7 @@ func (md *MysqlDump) Initialize(database string) error {
 		return err
 	}
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", user, password, host, port, database)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", user, password, host, port, md.Database)
 
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
@@ -55,18 +55,28 @@ func (md *MysqlDump) Initialize(database string) error {
 		return err
 	}
 
+	md.user = user
+	md.password = password
+	md.host = host
+	md.port = port
+	md.programPath = programPath
+
 	return nil
 }
 
 func (md *MysqlDump) Generate() ([]byte, error) {
 
-	program, err := exec.LookPath("mysqldump")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// TODO: add host and port
-	cmd := exec.Command(fmt.Sprintf("%s", program), fmt.Sprintf("-u%s", md.user), fmt.Sprintf("-p%s", md.password), md.database)
+	cmd := exec.Command(
+		fmt.Sprintf("%s", md.programPath),
+		fmt.Sprintf("-u%s", md.user),
+		fmt.Sprintf("-p%s", md.password),
+		fmt.Sprintf("--host=%s", md.host),
+		fmt.Sprintf("--port=%d", md.port),
+		// the following option will allow CRUD operations to continue while mysqldump is working
+		// it also creates a snapshot of the database prior to backing up to make sure the export keeps consistency and integrity
+		fmt.Sprintf("--single-transaction"),
+		md.Database,
+	)
 
 	out, err := cmd.Output()
 	if err != nil {

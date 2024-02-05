@@ -4,7 +4,10 @@
     - [ ] tests
   - [ ] 1 db -> 1 storage: small memory footprint
     - [ ] tests
+  - [ ] bin logs
   - [ ] 1 db -> multiple backup methods
+    - [ ] my_dumper
+    - [ ] percona extra_backup
   - [ ] 1 db -> multiple storage
     - [ ] tests
   - [ ] multiple db -> multiple storage

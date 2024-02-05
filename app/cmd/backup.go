@@ -65,9 +65,13 @@ $ oversight backup demo_db`,
 			storageDriver = args[1]
 		}
 
-		backupManager := business.Init(databaseName, storageDriver)
+		backupManager, err := business.Init(databaseName, storageDriver)
+		if err != nil {
+			color.Red("Error occurred while preparing backup method up => %s", err)
+			return err
+		}
 
-		err := backupManager.Backup()
+		err = backupManager.Backup()
 		if err != nil {
 			color.Red("Error occurred while backing up => %s", err)
 			return err
