@@ -1,8 +1,8 @@
-package databases_test
+package business_test
 
 import (
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/nizigama/ovrsight/business/databases"
+	"github.com/nizigama/ovrsight/business"
 	backupDB "github.com/nizigama/ovrsight/foundation/databases"
 	"github.com/nizigama/ovrsight/foundation/storage"
 	. "github.com/onsi/ginkgo/v2"
@@ -11,7 +11,7 @@ import (
 
 var _ = Describe("Backup", func() {
 
-	var backer *databases.Backer
+	var backer *business.Backer
 	var filesystemDvr *storage.FileSystemDriverMock
 	var dpbxDvr *storage.DropboxDriverMock
 	var gglDvr *storage.GoogleDriveDriverMock
@@ -31,7 +31,7 @@ var _ = Describe("Backup", func() {
 			filesystemDvr.On("Upload", []byte{}).Return(nil)
 			mysqlDumper.On("Generate").Return([]byte{}, nil)
 
-			backer = &databases.Backer{
+			backer = &business.Backer{
 				StorageDriver: filesystemDvr,
 				BackupMethod:  mysqlDumper,
 				DatabaseName:  "test_db",
@@ -50,7 +50,7 @@ var _ = Describe("Backup", func() {
 			dpbxDvr.On("Upload", []byte{}).Return(nil)
 			mysqlDumper.On("Generate").Return([]byte{}, nil)
 
-			backer = &databases.Backer{
+			backer = &business.Backer{
 				StorageDriver: dpbxDvr,
 				BackupMethod:  mysqlDumper,
 				DatabaseName:  "test_db",
@@ -69,7 +69,7 @@ var _ = Describe("Backup", func() {
 			gglDvr.On("Upload", []byte{}).Return(nil)
 			mysqlDumper.On("Generate").Return([]byte{}, nil)
 
-			backer = &databases.Backer{
+			backer = &business.Backer{
 				StorageDriver: gglDvr,
 				BackupMethod:  mysqlDumper,
 				DatabaseName:  "test_db",

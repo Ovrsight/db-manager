@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/joho/godotenv"
-	"github.com/nizigama/ovrsight/app/cli/cmd"
+	"github.com/nizigama/ovrsight/app/cmd"
 	"log"
 )
 

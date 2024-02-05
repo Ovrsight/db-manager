@@ -1,4 +1,4 @@
-package databases_test
+package business_test
 
 import (
 	"context"
@@ -49,7 +49,7 @@ func TestDatabases(t *testing.T) {
 		panic(err)
 	}
 
-	dot, err := dotsql.LoadFromFile("../../scripts/queries.sql")
+	dot, err := dotsql.LoadFromFile("../scripts/queries.sql")
 	if err != nil {
 		panic(err)
 	}

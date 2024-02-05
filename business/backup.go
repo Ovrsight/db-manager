@@ -1,4 +1,4 @@
-package databases
+package business
 
 import (
 	"database/sql"
@@ -40,17 +40,17 @@ func NewBacker(storageDriver, databaseName string) (*Backer, error) {
 		return nil, err
 	}
 
-	//cfg := configure(databaseName)
+	cfg := configure(databaseName)
 
-	//method := &databases.MysqlDumper{
-	//	Host:     cfg.host,
-	//	Port:     cfg.port,
-	//	User:     cfg.user,
-	//	Password: cfg.password,
-	//	Database: cfg.database,
-	//}
+	method := &databases.MysqlDumper{
+		Host:     cfg.host,
+		Port:     cfg.port,
+		User:     cfg.user,
+		Password: cfg.password,
+		Database: cfg.database,
+	}
 
-	method := &databases.XtraBackup{}
+	//method := &databases.XtraBackup{}
 
 	return &Backer{
 		StorageDriver: driver,

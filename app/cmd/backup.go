@@ -1,7 +1,7 @@
-package databases
+package cmd
 
 import (
-	"github.com/nizigama/ovrsight/business/databases"
+	"github.com/nizigama/ovrsight/business"
 	"github.com/nizigama/ovrsight/foundation/storage"
 	"log"
 
@@ -70,7 +70,7 @@ $ oversight databases:backup demo_db`,
 			storageDriver = args[1]
 		}
 
-		backer, err := databases.NewBacker(storageDriver, databaseName)
+		backer, err := business.NewBacker(storageDriver, databaseName)
 		if err != nil {
 			return err
 		}
@@ -86,14 +86,4 @@ $ oversight databases:backup demo_db`,
 	},
 }
 
-func init() {
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// databases.backupCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// BackupCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-}
+func init() {}

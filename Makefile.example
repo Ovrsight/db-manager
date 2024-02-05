@@ -5,3 +5,6 @@ run:
 	scp cli ubuntu@$(HOST):/home/ubuntu/cli
 	scp .env ubuntu@$(HOST):/home/ubuntu/.env
 	ssh ubuntu@$(HOST) './cli'
+
+test:
+	ginkgo -v ./...

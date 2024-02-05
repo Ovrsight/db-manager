@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"github.com/nizigama/ovrsight/app/cli/cmd/databases"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -22,5 +21,5 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.AddCommand(databases.BackupCmd)
+	rootCmd.AddCommand(BackupCmd)
 }
