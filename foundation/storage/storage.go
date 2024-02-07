@@ -1,7 +1,7 @@
 package storage
 
 type Engine interface {
-	Save([]byte) error
+	Save(receiver <-chan []byte) error
 }
 
 type EngineType string
@@ -18,14 +18,14 @@ func GetStorageEngine(engineType EngineType, fileName string) Engine {
 		return &FileSystem{
 			Filename: fileName,
 		}
-	case GoogleDriveType:
-		return &GoogleDrive{
-			Filename: fileName,
-		}
-	case DropboxType:
-		return &Dropbox{
-			Filename: fileName,
-		}
+	//case GoogleDriveType:
+	//	return &GoogleDrive{
+	//		Filename: fileName,
+	//	}
+	//case DropboxType:
+	//	return &Dropbox{
+	//		Filename: fileName,
+	//	}
 	default:
 		return &FileSystem{
 			Filename: fileName,

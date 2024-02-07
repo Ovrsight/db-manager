@@ -2,13 +2,13 @@ package methods
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"github.com/stretchr/testify/mock"
-	"log"
+	"io"
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 )
 
 type MysqlDump struct {
@@ -64,7 +64,7 @@ func (md *MysqlDump) Initialize() error {
 	return nil
 }
 
-func (md *MysqlDump) Generate() ([]byte, error) {
+func (md *MysqlDump) Generate(sender chan<- []byte) error {
 
 	cmd := exec.Command(
 		fmt.Sprintf("%s", md.programPath),
@@ -78,19 +78,54 @@ func (md *MysqlDump) Generate() ([]byte, error) {
 		md.Database,
 	)
 
-	out, err := cmd.Output()
+	outPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		execErr := &exec.ExitError{}
-		errors.As(err, &execErr)
-		log.Fatalln(string(execErr.Stderr))
+		return err
 	}
 
-	return out, nil
+	defer outPipe.Close()
+
+	err = cmd.Start()
+	if err != nil {
+		return err
+	}
+
+	content := make([]byte, 5)
+
+	reader := strings.NewReader("my name is nizigama jean davy !_")
+
+	for {
+
+		fmt.Println("starting [", string(content), "]")
+
+		read, err := reader.Read(content)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+
+		content = content[:read]
+
+		fmt.Println("sent [", string(content), "]")
+
+		sender <- content
+	}
+
+	//err = cmd.Wait()
+	//if err != nil {
+	//	execErr := &exec.ExitError{}
+	//	errors.As(err, &execErr)
+	//	log.Fatalln(string(execErr.Stderr))
+	//}
+
+	return nil
 }
 
-func (md *MysqlDump) Clean() error {
+func (md *MysqlDump) Clean(sender chan<- []byte) error {
 
-	// nothing for this method
+	close(sender)
 
 	return nil
 }

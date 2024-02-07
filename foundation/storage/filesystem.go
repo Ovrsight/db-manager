@@ -15,7 +15,7 @@ type FileSystemMock struct {
 	mock.Mock
 }
 
-func (fs *FileSystem) Save(data []byte) error {
+func (fs *FileSystem) Save(receiver <-chan []byte) error {
 
 	filesystemPath := os.Getenv("FILESYSTEM_PATH")
 
@@ -42,9 +42,16 @@ func (fs *FileSystem) Save(data []byte) error {
 
 	defer file.Close()
 
-	_, err = file.Write(data)
-	if err != nil {
-		return err
+	for content := range receiver {
+
+		fmt.Println("received [", string(content), "]")
+
+		_, err = file.Write(content)
+		if err != nil {
+
+			os.Remove(fs.Filename)
+			return err
+		}
 	}
 
 	return nil

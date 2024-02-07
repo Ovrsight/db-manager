@@ -5,6 +5,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/nizigama/ovrsight/foundation/methods"
 	"github.com/nizigama/ovrsight/foundation/storage"
+	"log"
+	"sync"
 	"time"
 )
 
@@ -62,19 +64,39 @@ func Init(database string, storageDriver string) (*BackupManager, error) {
 
 func (manager *BackupManager) Backup() error {
 
-	// generate backup bytes
-	data, err := manager.BackupMethod.Generate()
-	if err != nil {
-		return err
-	}
-
 	storageEngine := storage.GetStorageEngine(manager.StorageDriver, manager.Filename)
 
-	// upload backup bytes
-	err = storageEngine.Save(data)
+	wg := sync.WaitGroup{}
 
-	// backup method cleaner
-	_ = manager.BackupMethod.Clean()
+	wg.Add(2)
+	dataChan := make(chan []byte)
+
+	go func() {
+		// backup method cleaner
+		defer manager.BackupMethod.Clean(dataChan)
+		defer wg.Done()
+
+		// generate backup bytes
+		err := manager.BackupMethod.Generate(dataChan)
+
+		if err != nil {
+			log.Fatalln("backup failure", err)
+		}
+	}()
+
+	go func(se storage.Engine) {
+
+		defer wg.Done()
+
+		// upload backup bytes
+		err := se.Save(dataChan)
+
+		if err != nil {
+			log.Fatalln("storage failure", err)
+		}
+	}(storageEngine)
+
+	wg.Wait()
 
 	return nil
 }
