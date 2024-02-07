@@ -91,13 +91,9 @@ func (md *MysqlDump) Generate(sender chan<- []byte) error {
 		return err
 	}
 
-	content := make([]byte, 5)
-
-	//reader := strings.NewReader("my name is nizigama jean davy !_")
-
 	for {
 
-		fmt.Println("starting [", string(content), "]")
+		content := make([]byte, 5000000) // reading 5MB
 
 		read, err := outPipe.Read(content)
 		if err != nil {
@@ -107,11 +103,7 @@ func (md *MysqlDump) Generate(sender chan<- []byte) error {
 			return err
 		}
 
-		content = content[:read]
-
-		fmt.Println("sent [", string(content), "]")
-
-		sender <- content
+		sender <- content[:read]
 	}
 
 	err = cmd.Wait()

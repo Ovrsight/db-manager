@@ -1,7 +1,7 @@
 # Features
 - [ ] Backup database(s)
   - [x] 1 db -> 1 storage: huge memory footprint
-  - [ ] 1 db -> 1 storage: small memory footprint
+  - [x] 1 db -> 1 storage: small memory footprint
     - [ ] tests
   - [ ] bin logs
   - [ ] 1 db -> multiple backup methods

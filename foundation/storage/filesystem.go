@@ -44,8 +44,6 @@ func (fs *FileSystem) Save(receiver <-chan []byte) error {
 
 	for content := range receiver {
 
-		fmt.Println("received [", string(content), "]")
-
 		_, err = file.Write(content)
 		if err != nil {
 
