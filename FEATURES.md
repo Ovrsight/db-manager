@@ -2,6 +2,7 @@
 - [ ] Backup database(s)
   - [x] 1 db -> 1 storage: huge memory footprint
   - [x] 1 db -> 1 storage: small memory footprint
+    - [ ] add support for uploading chunks on other storage engines
     - [ ] tests
   - [ ] bin logs
   - [ ] 1 db -> multiple backup methods
