@@ -2,13 +2,14 @@ package methods
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/stretchr/testify/mock"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"strconv"
-	"strings"
 )
 
 type MysqlDump struct {
@@ -92,13 +93,13 @@ func (md *MysqlDump) Generate(sender chan<- []byte) error {
 
 	content := make([]byte, 5)
 
-	reader := strings.NewReader("my name is nizigama jean davy !_")
+	//reader := strings.NewReader("my name is nizigama jean davy !_")
 
 	for {
 
 		fmt.Println("starting [", string(content), "]")
 
-		read, err := reader.Read(content)
+		read, err := outPipe.Read(content)
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -113,12 +114,12 @@ func (md *MysqlDump) Generate(sender chan<- []byte) error {
 		sender <- content
 	}
 
-	//err = cmd.Wait()
-	//if err != nil {
-	//	execErr := &exec.ExitError{}
-	//	errors.As(err, &execErr)
-	//	log.Fatalln(string(execErr.Stderr))
-	//}
+	err = cmd.Wait()
+	if err != nil {
+		execErr := &exec.ExitError{}
+		errors.As(err, &execErr)
+		log.Fatalln(string(execErr.Stderr))
+	}
 
 	return nil
 }
