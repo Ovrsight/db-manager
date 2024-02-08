@@ -80,7 +80,7 @@ func (manager *BackupManager) Backup() error {
 		err := manager.BackupMethod.Generate(dataChan)
 
 		if err != nil {
-			log.Fatalln("backup failure", err)
+			log.Fatalln("Backup failure:", err)
 		}
 	}()
 
@@ -92,7 +92,7 @@ func (manager *BackupManager) Backup() error {
 		err := se.Save(dataChan)
 
 		if err != nil {
-			log.Fatalln("storage failure", err)
+			log.Fatalln("Storage failure:", err)
 		}
 	}(storageEngine)
 

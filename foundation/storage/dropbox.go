@@ -19,12 +19,22 @@ type DropboxMock struct {
 	mock.Mock
 }
 
-func (dbx *Dropbox) Save(data []byte) error {
+type uploadError struct {
+	ErrorSummary string `json:"error_summary"`
+	Error        struct {
+		Tag string `json:".tag"`
+	} `json:"error"`
+}
+
+func (dbx *Dropbox) Save(receiver <-chan []byte) error {
 
 	dropboxBuf := bytes.Buffer{}
-	_, err := dropboxBuf.Write(data)
-	if err != nil {
-		return err
+
+	for data := range receiver {
+		_, err := dropboxBuf.Write(data)
+		if err != nil {
+			return err
+		}
 	}
 
 	req, err := http.NewRequest("POST", "https://content.dropboxapi.com/2/files/upload", &dropboxBuf)
@@ -57,14 +67,22 @@ func (dbx *Dropbox) Save(data []byte) error {
 
 	if res.StatusCode != 200 {
 		data, _ := io.ReadAll(res.Body)
-		return errors.New(string(data))
+
+		resErr := uploadError{}
+
+		err = json.Unmarshal(data, &resErr)
+		if err != nil {
+			return errors.New(string(data))
+		}
+
+		return errors.New(resErr.Error.Tag)
 	}
 
 	return nil
 }
 
-func (dbx *DropboxMock) Save(data []byte) error {
+func (dbx *DropboxMock) Save(receiver <-chan []byte) error {
 
-	args := dbx.Called(data)
+	args := dbx.Called(<-receiver)
 	return args.Error(0)
 }

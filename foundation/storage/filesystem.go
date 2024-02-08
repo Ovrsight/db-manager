@@ -55,8 +55,8 @@ func (fs *FileSystem) Save(receiver <-chan []byte) error {
 	return nil
 }
 
-func (fs *FileSystemMock) Save(data []byte) error {
+func (fs *FileSystemMock) Save(receiver <-chan []byte) error {
 
-	args := fs.Called(data)
+	args := fs.Called(<-receiver)
 	return args.Error(0)
 }

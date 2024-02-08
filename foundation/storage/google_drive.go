@@ -18,7 +18,7 @@ type GoogleDriveMock struct {
 	mock.Mock
 }
 
-func (gglD *GoogleDrive) Save(data []byte) error {
+func (gglD *GoogleDrive) Save(receiver <-chan []byte) error {
 
 	jsonData := os.Getenv("GOOGLE_DRIVE_API_CREDENTIALS_JSON")
 	jsonCreds := []byte(jsonData)
@@ -35,9 +35,12 @@ func (gglD *GoogleDrive) Save(data []byte) error {
 	}
 
 	googleDriveBuf := bytes.Buffer{}
-	_, err = googleDriveBuf.Write(data)
-	if err != nil {
-		return err
+
+	for data := range receiver {
+		_, err := googleDriveBuf.Write(data)
+		if err != nil {
+			return err
+		}
 	}
 
 	f, err := driveService.Files.Create(driveFile).Media(&googleDriveBuf).Do()
@@ -52,8 +55,8 @@ func (gglD *GoogleDrive) Save(data []byte) error {
 	return nil
 }
 
-func (gglD *GoogleDriveMock) Save(data []byte) error {
+func (gglD *GoogleDriveMock) Save(receiver <-chan []byte) error {
 
-	args := gglD.Called(data)
+	args := gglD.Called(<-receiver)
 	return args.Error(0)
 }
