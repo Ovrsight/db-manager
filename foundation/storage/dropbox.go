@@ -80,7 +80,7 @@ func (dbx *Dropbox) start() (string, error) {
 	return sessionID, nil
 }
 
-func (dbx *Dropbox) append(sessionID string, offset int64, data []byte) error {
+func (dbx *Dropbox) append(sessionID string, offset int64, data []byte, final bool) error {
 
 	dropboxBuf := bytes.Buffer{}
 
@@ -98,7 +98,7 @@ func (dbx *Dropbox) append(sessionID string, offset int64, data []byte) error {
 	token := os.Getenv("DROPBOX_ACCESS_TOKEN")
 
 	params := map[string]interface{}{
-		"close": false,
+		"close": final,
 		"cursor": map[string]interface{}{
 			"offset":     offset,
 			"session_id": sessionID,
@@ -118,6 +118,8 @@ func (dbx *Dropbox) append(sessionID string, offset int64, data []byte) error {
 	if err != nil {
 		return err
 	}
+
+	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
 
@@ -194,21 +196,18 @@ func (dbx *Dropbox) finish(sessionID string) error {
 
 func (dbx *Dropbox) Save(receiver <-chan []byte) error {
 
-	//sessionID, err := dbx.start()
-	//if err != nil {
-	//	return err
-	//}
+	sessionID, err := dbx.start()
+	if err != nil {
+		return err
+	}
 
-	//payloadSize := 1 * 1024 * 1024
-	payloadSize := 3
+	payloadSize := 4 * 1024 * 1024
 	var offset int64
+	singleChunk := true
 
 	dropboxBuf := bytes.Buffer{}
-	reader := bytes.Buffer{}
 
 	for {
-
-		fmt.Println("Buffer size:", dropboxBuf.Len())
 
 		data, open := <-receiver
 
@@ -217,37 +216,65 @@ func (dbx *Dropbox) Save(receiver <-chan []byte) error {
 			return err
 		}
 
+		if dropboxBuf.Len() < payloadSize && offset == 0 {
+
+			if !open {
+				//	finished getting data from backup method
+				break
+			}
+
+			// grow the buffer to reach the minimum payload size
+			continue
+		}
+
+		singleChunk = false
+
+		if dropboxBuf.Len() < payloadSize && offset > 0 {
+
+			if open {
+				continue
+			}
+		}
+
 		payloadData := dropboxBuf.Next(payloadSize)
 
-		fmt.Println(offset, string(payloadData))
+		err = dbx.append(sessionID, offset, payloadData, len(payloadData) < payloadSize)
+		if err != nil {
+			return err
+		}
 
-		reader.Write(payloadData)
-
-		//err = dbx.append(sessionID, offset, dropboxBuf.Next(payloadSize))
-		//if err != nil {
-		//	return err
-		//}
-
-		offset += int64(payloadSize)
+		offset += int64(len(payloadData))
 
 		if !open {
-			payloadData = dropboxBuf.Next(payloadSize)
 
-			fmt.Println(offset, string(payloadData))
+			for dropboxBuf.Len() > 0 {
 
-			reader.Write(payloadData)
+				fmt.Println("Exception")
+
+				payloadData := dropboxBuf.Next(payloadSize)
+
+				err = dbx.append(sessionID, offset, payloadData, len(payloadData) < payloadSize)
+				if err != nil {
+					return err
+				}
+			}
 			break
+		}
+
+		fmt.Println("Finished uploading:", len(payloadData))
+	}
+
+	if singleChunk {
+		err = dbx.append(sessionID, offset, dropboxBuf.Bytes(), true)
+		if err != nil {
+			return err
 		}
 	}
 
-	fmt.Println("Buffer size:", dropboxBuf.Len())
-
-	fmt.Println("read data:", string(reader.Bytes()))
-
-	//err = dbx.finish(sessionID)
-	//if err != nil {
-	//	return err
-	//}
+	err = dbx.finish(sessionID)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
