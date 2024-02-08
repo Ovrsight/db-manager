@@ -2,14 +2,13 @@ package methods
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"github.com/stretchr/testify/mock"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 )
 
 type MysqlDump struct {
@@ -67,35 +66,37 @@ func (md *MysqlDump) Initialize() error {
 
 func (md *MysqlDump) Generate(sender chan<- []byte) error {
 
-	cmd := exec.Command(
-		fmt.Sprintf("%s", md.programPath),
-		fmt.Sprintf("-u%s", md.user),
-		fmt.Sprintf("-p%s", md.password),
-		fmt.Sprintf("--host=%s", md.host),
-		fmt.Sprintf("--port=%d", md.port),
-		// the following option will allow CRUD operations to continue while mysqldump is working
-		// it also creates a snapshot of the database prior to backing up to make sure the export keeps consistency and integrity
-		fmt.Sprintf("--single-transaction"),
-		md.Database,
-	)
+	//cmd := exec.Command(
+	//	fmt.Sprintf("%s", md.programPath),
+	//	fmt.Sprintf("-u%s", md.user),
+	//	fmt.Sprintf("-p%s", md.password),
+	//	fmt.Sprintf("--host=%s", md.host),
+	//	fmt.Sprintf("--port=%d", md.port),
+	//	// the following option will allow CRUD operations to continue while mysqldump is working
+	//	// it also creates a snapshot of the database prior to backing up to make sure the export keeps consistency and integrity
+	//	fmt.Sprintf("--single-transaction"),
+	//	md.Database,
+	//)
+	//
+	//outPipe, err := cmd.StdoutPipe()
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//defer outPipe.Close()
+	//
+	//err = cmd.Start()
+	//if err != nil {
+	//	return err
+	//}
 
-	outPipe, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-
-	defer outPipe.Close()
-
-	err = cmd.Start()
-	if err != nil {
-		return err
-	}
+	reader := strings.NewReader("my name is jean davy Nizigama!")
 
 	for {
 
-		content := make([]byte, 5000000) // reading 5MB
+		content := make([]byte, 5) // reading 5MB
 
-		read, err := outPipe.Read(content)
+		read, err := reader.Read(content)
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -106,12 +107,12 @@ func (md *MysqlDump) Generate(sender chan<- []byte) error {
 		sender <- content[:read]
 	}
 
-	err = cmd.Wait()
-	if err != nil {
-		execErr := &exec.ExitError{}
-		errors.As(err, &execErr)
-		log.Fatalln(string(execErr.Stderr))
-	}
+	//err = cmd.Wait()
+	//if err != nil {
+	//	execErr := &exec.ExitError{}
+	//	errors.As(err, &execErr)
+	//	log.Fatalln(string(execErr.Stderr))
+	//}
 
 	return nil
 }
