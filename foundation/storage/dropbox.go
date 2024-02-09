@@ -246,26 +246,22 @@ func (dbx *Dropbox) Save(receiver <-chan []byte) error {
 		offset += int64(len(payloadData))
 
 		if !open {
-
-			for dropboxBuf.Len() > 0 {
-
-				fmt.Println("Exception")
-
-				payloadData := dropboxBuf.Next(payloadSize)
-
-				err = dbx.append(sessionID, offset, payloadData, len(payloadData) < payloadSize)
-				if err != nil {
-					return err
-				}
-			}
 			break
 		}
-
-		fmt.Println("Finished uploading:", len(payloadData))
 	}
 
 	if singleChunk {
 		err = dbx.append(sessionID, offset, dropboxBuf.Bytes(), true)
+		if err != nil {
+			return err
+		}
+	}
+
+	for dropboxBuf.Len() > 0 {
+
+		payloadData := dropboxBuf.Next(payloadSize)
+
+		err = dbx.append(sessionID, offset, payloadData, len(payloadData) < payloadSize)
 		if err != nil {
 			return err
 		}
