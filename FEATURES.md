@@ -2,7 +2,8 @@
 - [ ] Backup database(s)
   - [x] 1 db -> 1 storage: huge memory footprint
   - [x] 1 db -> 1 storage: small memory footprint
-    - [ ] 5 concurrent chunks upload on dropbox
+    - [ ] big file in chunks for Google Drive with one process
+    - [ ] big file in chunks for Google Drive with multiple processes
     - [ ] add support for uploading chunks on Google Drive
   - [ ] bin logs
   - [ ] 1 db -> multiple backup methods
