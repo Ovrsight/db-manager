@@ -5,10 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 	"io"
+	"log"
 	"net/http"
 	"os"
+	"strconv"
+	"sync"
 )
 
 type Dropbox struct {
@@ -201,9 +205,18 @@ func (dbx *Dropbox) Save(receiver <-chan []byte) error {
 		return err
 	}
 
+	concurrency := os.Getenv("DROPBOX_CONCURRENT_REQUESTS")
+
+	concurrentTasks, err := strconv.Atoi(concurrency)
+	if err != nil {
+		concurrentTasks = 5
+	}
+
 	payloadSize := 4 * 1024 * 1024
 	var offset int64
 	singleChunk := true
+	tasksToComplete := make(chan struct{}, concurrentTasks)
+	wg := sync.WaitGroup{}
 
 	dropboxBuf := bytes.Buffer{}
 
@@ -238,10 +251,29 @@ func (dbx *Dropbox) Save(receiver <-chan []byte) error {
 
 		payloadData := dropboxBuf.Next(payloadSize)
 
-		err = dbx.append(sessionID, offset, payloadData, len(payloadData) < payloadSize)
-		if err != nil {
-			return err
-		}
+		taskID := uuid.New().String()
+		tasksToComplete <- struct{}{}
+
+		lastChunk := len(payloadData) < payloadSize
+
+		wg.Add(1)
+
+		go func(id string, data []byte, offsetPoint int64, lastChunk bool) {
+
+			defer wg.Done()
+
+			log.Println("Processing task:", id)
+
+			err = dbx.append(sessionID, offsetPoint, payloadData, lastChunk)
+			if err != nil {
+				log.Println("Failed task:", id)
+				log.Println(err)
+				return
+			}
+
+			<-tasksToComplete
+			log.Println("Completed task:", id)
+		}(taskID, payloadData[:], offset, lastChunk)
 
 		offset += int64(len(payloadData))
 
@@ -256,6 +288,8 @@ func (dbx *Dropbox) Save(receiver <-chan []byte) error {
 			return err
 		}
 	}
+
+	wg.Wait()
 
 	for dropboxBuf.Len() > 0 {
 
