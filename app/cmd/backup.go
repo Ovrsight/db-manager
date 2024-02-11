@@ -16,8 +16,9 @@ Database backup
 ===============
 This tool will help you backup a given database to one or multiple storage providers like:
 
+- Filesystem
 - DropBox
-- Google Drive
+- Google Drive (coming soon)
 - S3 (coming soon)
 
 =========
@@ -25,7 +26,7 @@ Arguments
 =========
 You need to pass to the command two arguments, the first shall always be the name of the database want to backup
 and the second, can be omitted, is the driver used to backup the database.
-The second argument can be any of the following: filesystem, dropbox, googledrive.
+The second argument can be any of the following: filesystem & dropbox.
 If the storage driver is omitted, the filesystem driver will be used by default.
 
 Eg:

@@ -21,7 +21,6 @@ func GetSupportedStorageDrivers() []string {
 	return []string{
 		string(storage.FileSystemType),
 		string(storage.DropboxType),
-		string(storage.GoogleDriveType),
 	}
 }
 
@@ -40,8 +39,6 @@ func Init(database string, storageDriver string) (*BackupManager, error) {
 		driver = storage.FileSystemType
 	case "dropbox":
 		driver = storage.DropboxType
-	case "google_drive":
-		driver = storage.GoogleDriveType
 	default:
 		driver = storage.FileSystemType
 	}
