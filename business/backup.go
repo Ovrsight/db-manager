@@ -30,7 +30,7 @@ func GetDefaultStorageDriver() string {
 }
 
 func Init(database string, storageDriver string) (*BackupManager, error) {
-	filename := fmt.Sprintf("%d_%s.sql", time.Now().UnixNano(), database)
+	filename := fmt.Sprintf("%d_%s.sql", time.Now().Unix(), database)
 
 	var driver storage.EngineType
 
