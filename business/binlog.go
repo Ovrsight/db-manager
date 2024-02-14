@@ -15,6 +15,12 @@ type binlogConf struct {
 	sizeInMegabytes int64
 }
 
+type Binlog struct {
+	Name      string
+	Size      int64
+	encrypted string
+}
+
 type BinlogManager struct {
 }
 
@@ -254,6 +260,56 @@ func (bm BinlogManager) FlushLogs() error {
 }
 
 // list binary logs
+
+func (bm BinlogManager) ListLogs() ([]Binlog, error) {
+
+	// connection to database server is possible
+	host := os.Getenv("DB_HOST")
+	p := os.Getenv("DB_PORT")
+	user := os.Getenv("DB_USER")
+	password := os.Getenv("DB_PASSWORD")
+
+	port, err := strconv.Atoi(p)
+	if err != nil {
+		return nil, err
+	}
+
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/", user, password, host, port)
+
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	err = db.Ping()
+	if err != nil {
+		return nil, err
+	}
+
+	// use needs `REPLICATION CLIENT` privilege
+	// action: GRANT REPLICATION CLIENT ON *.* TO 'user'@'%';FLUSH PRIVILEGES;
+	rows, err := db.Query("SHOW BINARY LOGS")
+
+	if err != nil {
+		return nil, nil
+	}
+
+	var logs []Binlog
+
+	for rows.Next() {
+		log := Binlog{}
+
+		err = rows.Scan(&log.Name, &log.Size, &log.encrypted)
+		if err != nil {
+			return nil, err
+		}
+
+		logs = append(logs, log)
+	}
+
+	return logs, nil
+}
+
 // get content of a binary log for a specific database
 // get content of (a) binary log(s) from/until a certain point in time
 // !!! REMEMBER TO USE --disable-log-bin WHEN READING BINARY LOG DATA TO AVOID AN ENDLESS LOOP OF LOGS !!!
