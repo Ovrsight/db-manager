@@ -1,9 +1,12 @@
 package business
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
+	"time"
 )
 
 type binlogConf struct {
@@ -14,8 +17,6 @@ type binlogConf struct {
 
 type BinlogManager struct {
 }
-
-// enable binlog
 
 func (bm BinlogManager) Enable() error {
 
@@ -41,7 +42,6 @@ max_binlog_size=%dM
 		return err
 	}
 
-	// restart mysql
 	programPath, err := exec.LookPath("mysqld")
 	if err != nil {
 		return err
@@ -76,8 +76,6 @@ max_binlog_size=%dM
 
 	return nil
 }
-
-// disable binlog
 
 func (bm BinlogManager) Disable() error {
 
@@ -137,7 +135,88 @@ disable-log-bin
 }
 
 // check binlog status
+
+func (bm BinlogManager) IsActive() (bool, error) {
+
+	// connection to database server is possible
+	host := os.Getenv("DB_HOST")
+	p := os.Getenv("DB_PORT")
+	user := os.Getenv("DB_USER")
+	password := os.Getenv("DB_PASSWORD")
+
+	port, err := strconv.Atoi(p)
+	if err != nil {
+		return false, err
+	}
+
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/", user, password, host, port)
+
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return false, err
+	}
+
+	err = db.Ping()
+	if err != nil {
+		return false, err
+	}
+
+	row := db.QueryRow("show variables like 'log_bin'")
+
+	if row.Err() != nil {
+		return false, nil
+	}
+
+	var option, value string
+
+	err = row.Scan(&option, &value)
+	if err != nil {
+		return false, err
+	}
+
+	return value == "ON", nil
+}
+
 // purge binary logs
+
+func (bm BinlogManager) PurgeLogs() error {
+
+	// connection to database server is possible
+	host := os.Getenv("DB_HOST")
+	p := os.Getenv("DB_PORT")
+	user := os.Getenv("DB_USER")
+	password := os.Getenv("DB_PASSWORD")
+
+	port, err := strconv.Atoi(p)
+	if err != nil {
+		return err
+	}
+
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/", user, password, host, port)
+
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return err
+	}
+
+	err = db.Ping()
+	if err != nil {
+		return err
+	}
+
+	endOfDay := time.Now().Format(time.DateOnly)
+
+	// use needs `BINLOG_ADMIN` privilege
+	// action: GRANT BINLOG_ADMIN ON *.* TO 'user'@'%';
+	_, err = db.Exec(fmt.Sprintf("PURGE BINARY LOGS BEFORE '%s 23:59:59'", endOfDay))
+
+	if err != nil {
+		return nil
+	}
+
+	return nil
+}
+
 // close current binary log and open a new one
 // list binary logs
 // get content of a binary log for a specific database
