@@ -78,6 +78,64 @@ max_binlog_size=%dM
 }
 
 // disable binlog
+
+func (bm BinlogManager) Disable() error {
+
+	//
+	file, err := os.OpenFile("/etc/mysql/mysql.conf.d/oversight-binlog.cnf", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	configuration := fmt.Sprintf(`
+[mysqld]
+
+disable-log-bin
+`)
+
+	_, err = file.WriteString(configuration)
+	if err != nil {
+		return err
+	}
+
+	// restart mysql
+	programPath, err := exec.LookPath("mysqld")
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command(
+		fmt.Sprintf("%s", programPath),
+		fmt.Sprintf("--validate-config"),
+	)
+
+	data, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Println(string(data))
+		return err
+	}
+
+	programPath, err = exec.LookPath("/etc/init.d/mysql")
+	if err != nil {
+		return err
+	}
+
+	cmd = exec.Command(
+		fmt.Sprintf("%s", programPath),
+		fmt.Sprintf("restart"),
+	)
+
+	data, err = cmd.CombinedOutput()
+	if err != nil {
+		fmt.Println(string(data))
+		return err
+	}
+
+	return nil
+}
+
 // check binlog status
 // purge binary logs
 // close current binary log and open a new one
