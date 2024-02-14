@@ -177,8 +177,6 @@ func (bm BinlogManager) IsActive() (bool, error) {
 	return value == "ON", nil
 }
 
-// purge binary logs
-
 func (bm BinlogManager) PurgeLogs() error {
 
 	// connection to database server is possible
@@ -207,7 +205,7 @@ func (bm BinlogManager) PurgeLogs() error {
 	endOfDay := time.Now().Format(time.DateOnly)
 
 	// use needs `BINLOG_ADMIN` privilege
-	// action: GRANT BINLOG_ADMIN ON *.* TO 'user'@'%';
+	// action: GRANT BINLOG_ADMIN ON *.* TO 'user'@'%'; FLUSH PRIVILEGES;
 	_, err = db.Exec(fmt.Sprintf("PURGE BINARY LOGS BEFORE '%s 23:59:59'", endOfDay))
 
 	if err != nil {
@@ -218,6 +216,43 @@ func (bm BinlogManager) PurgeLogs() error {
 }
 
 // close current binary log and open a new one
+
+func (bm BinlogManager) FlushLogs() error {
+
+	// connection to database server is possible
+	host := os.Getenv("DB_HOST")
+	p := os.Getenv("DB_PORT")
+	user := os.Getenv("DB_USER")
+	password := os.Getenv("DB_PASSWORD")
+
+	port, err := strconv.Atoi(p)
+	if err != nil {
+		return err
+	}
+
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/", user, password, host, port)
+
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return err
+	}
+
+	err = db.Ping()
+	if err != nil {
+		return err
+	}
+
+	// use needs `RELOAD` privilege
+	// action: GRANT RELOAD ON *.* TO 'user'@'%';FLUSH PRIVILEGES;
+	_, err = db.Exec("FLUSH BINARY LOGS")
+
+	if err != nil {
+		return nil
+	}
+
+	return nil
+}
+
 // list binary logs
 // get content of a binary log for a specific database
 // get content of (a) binary log(s) from/until a certain point in time
