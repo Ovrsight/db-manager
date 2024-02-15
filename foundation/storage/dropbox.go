@@ -17,6 +17,7 @@ import (
 
 type Dropbox struct {
 	Filename string
+	Database string
 }
 
 type DropboxMock struct {
@@ -158,7 +159,7 @@ func (dbx *Dropbox) finish(sessionID string) error {
 			"autorename":      false,
 			"mode":            "add",
 			"mute":            false,
-			"path":            fmt.Sprintf("%s/%s", path, dbx.Filename),
+			"path":            fmt.Sprintf("%s/%s/%s", path, dbx.Database, dbx.Filename),
 			"strict_conflict": false,
 		},
 		"cursor": map[string]interface{}{

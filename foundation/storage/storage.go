@@ -11,7 +11,7 @@ const (
 	DropboxType    EngineType = "dropbox"
 )
 
-func GetStorageEngine(engineType EngineType, fileName string) Engine {
+func GetStorageEngine(engineType EngineType, fileName, database string) Engine {
 	switch engineType {
 	case FileSystemType:
 		return &FileSystem{
@@ -20,6 +20,7 @@ func GetStorageEngine(engineType EngineType, fileName string) Engine {
 	case DropboxType:
 		return &Dropbox{
 			Filename: fileName,
+			Database: database,
 		}
 	default:
 		return &FileSystem{

@@ -91,8 +91,6 @@ func (md *MysqlDump) Generate(sender chan<- []byte) error {
 		return err
 	}
 
-	//reader := strings.NewReader("my name is jean davy Nizigama!")
-
 	for {
 
 		content := make([]byte, 5000000) // reading 5MB
@@ -123,10 +121,4 @@ func (md *MysqlDump) Clean(sender chan<- []byte) error {
 	close(sender)
 
 	return nil
-}
-
-func (mdm *MysqlDumpMock) Generate() ([]byte, error) {
-
-	args := mdm.Called()
-	return args.Get(0).([]byte), args.Error(1)
 }

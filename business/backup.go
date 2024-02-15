@@ -30,7 +30,7 @@ func GetDefaultStorageDriver() string {
 }
 
 func Init(database string, storageDriver string) (*BackupManager, error) {
-	filename := fmt.Sprintf("%d_%s.sql", time.Now().Unix(), database)
+	filename := fmt.Sprintf("%d_full.sql", time.Now().Unix())
 
 	var driver storage.EngineType
 
@@ -61,7 +61,7 @@ func Init(database string, storageDriver string) (*BackupManager, error) {
 
 func (manager *BackupManager) Backup() error {
 
-	storageEngine := storage.GetStorageEngine(manager.StorageDriver, manager.Filename)
+	storageEngine := storage.GetStorageEngine(manager.StorageDriver, manager.Filename, manager.Database)
 
 	wg := sync.WaitGroup{}
 
