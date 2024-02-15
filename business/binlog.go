@@ -311,5 +311,29 @@ func (bm BinlogManager) ListLogs() ([]Binlog, error) {
 }
 
 // get content of a binary log for a specific database
+
+func (bm BinlogManager) GetAllDatabaseChanges(database, binlogPath string) ([]byte, error) {
+
+	programPath, err := exec.LookPath("mysqlbinlog")
+	if err != nil {
+		return nil, err
+	}
+
+	cmd := exec.Command(
+		fmt.Sprintf("%s", programPath),
+		fmt.Sprintf("--database"),
+		fmt.Sprintf(database),
+		fmt.Sprintf("--disable-log-bin"),
+		fmt.Sprintf(binlogPath),
+	)
+
+	data, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
 // get content of (a) binary log(s) from/until a certain point in time
 // !!! REMEMBER TO USE --disable-log-bin WHEN READING BINARY LOG DATA TO AVOID AN ENDLESS LOOP OF LOGS !!!
