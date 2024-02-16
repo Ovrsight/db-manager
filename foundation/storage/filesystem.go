@@ -9,6 +9,7 @@ import (
 
 type FileSystem struct {
 	Filename string
+	Database string
 }
 
 type FileSystemMock struct {
@@ -20,6 +21,8 @@ func (fs *FileSystem) Save(receiver <-chan []byte) error {
 	filesystemPath := os.Getenv("FILESYSTEM_PATH")
 
 	steps := strings.Split(filesystemPath, "/")
+
+	steps = append(steps, fs.Database)
 
 	if len(steps) > 1 {
 

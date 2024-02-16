@@ -16,6 +16,7 @@ func GetStorageEngine(engineType EngineType, fileName, database string) Engine {
 	case FileSystemType:
 		return &FileSystem{
 			Filename: fileName,
+			Database: database,
 		}
 	case DropboxType:
 		return &Dropbox{
@@ -25,6 +26,7 @@ func GetStorageEngine(engineType EngineType, fileName, database string) Engine {
 	default:
 		return &FileSystem{
 			Filename: fileName,
+			Database: database,
 		}
 	}
 }
