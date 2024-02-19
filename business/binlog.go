@@ -37,7 +37,7 @@ func (bm BinlogManager) Enable() error {
 	configuration := fmt.Sprintf(`
 [mysqld]
 
-log-bin=mysql-bin
+log-bin=oversight-bin
 binlog_format=%s
 expire_logs_days=%d
 max_binlog_size=%dM

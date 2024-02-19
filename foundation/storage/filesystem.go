@@ -2,7 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/mock"
 	"os"
 	"strings"
 )
@@ -12,31 +11,28 @@ type FileSystem struct {
 	Database string
 }
 
-type FileSystemMock struct {
-	mock.Mock
-}
-
 func (fs *FileSystem) Save(receiver <-chan []byte) error {
 
 	filesystemPath := os.Getenv("FILESYSTEM_PATH")
+
+	if filesystemPath == "" || filesystemPath == "/" {
+		filesystemPath = "./"
+	}
 
 	steps := strings.Split(filesystemPath, "/")
 
 	steps = append(steps, fs.Database)
 
-	if len(steps) > 1 {
+	path := strings.Join(steps, "/")
 
-		path := strings.Join(steps, "/")
+	path = strings.ReplaceAll(path, "//", "/")
 
-		err := os.MkdirAll(path, 0555)
-		if err != nil {
-			return err
-		}
-
-		fs.Filename = fmt.Sprintf("%s/%s", path, fs.Filename)
+	err := os.MkdirAll(path, 0555)
+	if err != nil {
+		return err
 	}
 
-	fs.Filename = strings.ReplaceAll(fs.Filename, "//", "/")
+	fs.Filename = fmt.Sprintf("%s/%s", path, fs.Filename)
 
 	file, err := os.Create(fs.Filename)
 	if err != nil {
@@ -56,10 +52,4 @@ func (fs *FileSystem) Save(receiver <-chan []byte) error {
 	}
 
 	return nil
-}
-
-func (fs *FileSystemMock) Save(receiver <-chan []byte) error {
-
-	args := fs.Called(<-receiver)
-	return args.Error(0)
 }
