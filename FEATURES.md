@@ -4,6 +4,8 @@
     - [x] Filesystem
     - [x] Dropbox
   - [ ] Bin logs
+    - [ ] Backup binlogs of a specific database of a specific backup 
+  - [ ] Add proper error handling when either method or storage fail
   - [ ] Recovery
   - [ ] MyDumper
   - [ ] Percona Extra Backup

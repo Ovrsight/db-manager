@@ -1,11 +1,15 @@
 package business
 
 import (
+	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/nizigama/ovrsight/foundation/methods"
+	"github.com/nizigama/ovrsight/foundation/models"
 	"github.com/nizigama/ovrsight/foundation/storage"
 	"log"
+	"os"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -59,6 +63,44 @@ func Init(database string, storageDriver string) (*BackupManager, error) {
 	}, nil
 }
 
+func (manager *BackupManager) getMasterLog() (string, int, error) {
+
+	host := os.Getenv("DB_HOST")
+	p := os.Getenv("DB_PORT")
+	user := os.Getenv("DB_USER")
+	password := os.Getenv("DB_PASSWORD")
+
+	port, err := strconv.Atoi(p)
+	if err != nil {
+		return "", 0, err
+	}
+
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/", user, password, host, port)
+
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return "", 0, err
+	}
+
+	err = db.Ping()
+	if err != nil {
+		return "", 0, err
+	}
+
+	var filename string
+	var position int
+	var doDb string
+	var ignoreDb string
+	var gtidSet string
+
+	err = db.QueryRow("SHOW MASTER STATUS").Scan(&filename, &position, &doDb, &ignoreDb, &gtidSet)
+	if err != nil {
+		return "", 0, err
+	}
+
+	return filename, position, nil
+}
+
 func (manager *BackupManager) Backup() error {
 
 	storageEngine := storage.GetStorageEngine(manager.StorageDriver, manager.Filename, manager.Database)
@@ -67,6 +109,48 @@ func (manager *BackupManager) Backup() error {
 
 	wg.Add(2)
 	dataChan := make(chan []byte)
+	var backupSuccessful bool
+
+	models.Init()
+
+	// get or create database record
+	database := new(models.Database)
+	err := database.FindOrCreate(manager.Database)
+
+	if err != nil {
+		return err
+	}
+
+	// create backup record
+	backup := models.Backup{
+		DatabaseId: int64(database.ID),
+		Filename:   manager.Filename,
+		BackupTime: time.Now(),
+		IsActive:   true,
+	}
+
+	res := models.Db.Create(&backup)
+	if res.Error != nil {
+		return res.Error
+	}
+
+	// get master binary and create bin log record
+	binlogName, position, err := manager.getMasterLog()
+	if err != nil {
+		return err
+	}
+
+	binlog := models.Binlog{
+		BackupId: int64(backup.ID),
+		Filename: binlogName,
+		Size:     0,
+		Position: int64(position),
+	}
+
+	res = models.Db.Create(&binlog)
+	if res.Error != nil {
+		return res.Error
+	}
 
 	go func() {
 		// backup method cleaner
@@ -91,9 +175,29 @@ func (manager *BackupManager) Backup() error {
 		if err != nil {
 			log.Fatalln("Storage failure:", err)
 		}
+		backupSuccessful = true
 	}(storageEngine)
 
 	wg.Wait()
+
+	if !backupSuccessful {
+
+		tx := models.Db.Begin()
+
+		res = tx.Delete(&binlog)
+		if res.Error != nil {
+			tx.Rollback()
+			return res.Error
+		}
+
+		res := res.Delete(&backup)
+		if res.Error != nil {
+			tx.Rollback()
+			return res.Error
+		}
+
+		tx.Commit()
+	}
 
 	return nil
 }
