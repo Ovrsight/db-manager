@@ -1,6 +1,7 @@
 package models
 
 import (
+	"database/sql"
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 	"log"
@@ -30,7 +31,7 @@ type Binlog struct {
 	Size      int64
 	Position  int64
 	StartTime time.Time
-	EndTime   time.Time
+	EndTime   sql.NullTime
 }
 
 var Db *gorm.DB

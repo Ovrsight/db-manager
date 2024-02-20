@@ -141,10 +141,11 @@ func (manager *BackupManager) Backup() error {
 	}
 
 	binlog := models.Binlog{
-		BackupId: int64(backup.ID),
-		Filename: binlogName,
-		Size:     0,
-		Position: int64(position),
+		BackupId:  int64(backup.ID),
+		Filename:  binlogName,
+		Size:      0,
+		Position:  int64(position),
+		StartTime: time.Now(),
 	}
 
 	res = models.Db.Create(&binlog)
