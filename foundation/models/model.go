@@ -1,7 +1,6 @@
 package models
 
 import (
-	"database/sql"
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 	"log"
@@ -26,12 +25,11 @@ type Backup struct {
 
 type Binlog struct {
 	gorm.Model
-	BackupId  int64
-	Filename  string
-	Size      int64
-	Position  int64
-	StartTime time.Time
-	EndTime   sql.NullTime
+	BackupId int64
+	Filename string
+	Size     int64
+	Position int64
+	BackedUp bool
 }
 
 var Db *gorm.DB

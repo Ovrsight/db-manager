@@ -7,8 +7,10 @@ import (
 	"time"
 )
 
+var backupBinlog bool
+
 // BackupCmd represents the databases.backup command
-var BackupCmd = &cobra.Command{
+var backupCmd = &cobra.Command{
 	Use:   "backup",
 	Short: "Select a database to backup using one or multiple storage systems",
 	Long: `===============
@@ -66,20 +68,43 @@ $ oversight backup demo_db`,
 			storageDriver = args[1]
 		}
 
-		backupManager, err := business.Init(databaseName, storageDriver)
+		if !backupBinlog {
+			backupManager, err := business.InitBackupManager(databaseName, storageDriver)
+			if err != nil {
+				color.Red("Error occurred while preparing backup method up => %s", err)
+				return err
+			}
+
+			err = backupManager.Backup()
+			if err != nil {
+				color.Red("Error occurred while backing up => %s", err)
+				return err
+			}
+
+			color.Green("%s => The '%s' database has been successfully backed up using the %s driver\n", time.Now().Format(time.DateTime), databaseName, storageDriver)
+
+			return nil
+		}
+
+		// backup binary logs
+		binlogManager, err := business.InitBinlogManager(databaseName)
 		if err != nil {
-			color.Red("Error occurred while preparing backup method up => %s", err)
+			color.Red("Error occurred while preparing binlog manager => %s", err)
 			return err
 		}
 
-		err = backupManager.Backup()
+		err = binlogManager.Backup()
 		if err != nil {
-			color.Red("Error occurred while backing up => %s", err)
+			color.Red("Error occurred while backing up binary logs => %s", err)
 			return err
 		}
 
-		color.Green("%s => The '%s' database has been successfully backed up using the %s driver\n", time.Now().Format(time.DateTime), databaseName, storageDriver)
+		color.Green("%s => The '%s' database's binary logs have been successfully backed up using the %s driver\n", time.Now().Format(time.DateTime), databaseName, storageDriver)
 
 		return nil
 	},
+}
+
+func init() {
+	backupCmd.Flags().BoolVarP(&backupBinlog, "binlog", "b", false, "Backup binary logs of the last full backup")
 }

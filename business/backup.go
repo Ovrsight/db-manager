@@ -7,6 +7,7 @@ import (
 	"github.com/nizigama/ovrsight/foundation/methods"
 	"github.com/nizigama/ovrsight/foundation/models"
 	"github.com/nizigama/ovrsight/foundation/storage"
+	"gorm.io/gorm"
 	"log"
 	"os"
 	"strconv"
@@ -33,7 +34,7 @@ func GetDefaultStorageDriver() string {
 	return string(storage.FileSystemType)
 }
 
-func Init(database string, storageDriver string) (*BackupManager, error) {
+func InitBackupManager(database string, storageDriver string) (*BackupManager, error) {
 	filename := fmt.Sprintf("%d_full.sql", time.Now().Unix())
 
 	var driver storage.EngineType
@@ -110,47 +111,63 @@ func (manager *BackupManager) Backup() error {
 	wg.Add(2)
 	dataChan := make(chan []byte)
 	var backupSuccessful bool
+	var backupId int64
+	var binlogId int64
 
 	models.Init()
 
 	// get or create database record
 	database := new(models.Database)
+
 	err := database.FindOrCreate(manager.Database)
-
 	if err != nil {
 		return err
 	}
 
-	// create backup record
-	backup := models.Backup{
-		DatabaseId: int64(database.ID),
-		Filename:   manager.Filename,
-		BackupTime: time.Now(),
-		IsActive:   true,
-	}
+	err = models.Db.Transaction(func(tx *gorm.DB) error {
 
-	res := models.Db.Create(&backup)
-	if res.Error != nil {
-		return res.Error
-	}
+		// create backup record
+		backup := models.Backup{
+			DatabaseId: int64(database.ID),
+			Filename:   manager.Filename,
+			BackupTime: time.Now(),
+			IsActive:   true,
+		}
 
-	// get master binary and create bin log record
-	binlogName, position, err := manager.getMasterLog()
+		err := tx.Model(&models.Backup{}).Where("is_active = ? AND database_id = ?", true, database.ID).Update("is_active", false).Error
+		if err != nil {
+			return err
+		}
+
+		err = tx.Create(&backup).Error
+		if err != nil {
+			return err
+		}
+		backupId = int64(backup.ID)
+
+		// get master binary and create bin log record
+		binlogName, position, err1 := manager.getMasterLog()
+		if err1 != nil {
+			return err1
+		}
+
+		binlog := models.Binlog{
+			BackupId: int64(backup.ID),
+			Filename: binlogName,
+			Size:     int64(position),
+			Position: int64(position),
+		}
+
+		err = tx.Create(&binlog).Error
+		if err != nil {
+			return err
+		}
+		binlogId = int64(binlog.ID)
+
+		return nil
+	})
 	if err != nil {
 		return err
-	}
-
-	binlog := models.Binlog{
-		BackupId:  int64(backup.ID),
-		Filename:  binlogName,
-		Size:      0,
-		Position:  int64(position),
-		StartTime: time.Now(),
-	}
-
-	res = models.Db.Create(&binlog)
-	if res.Error != nil {
-		return res.Error
 	}
 
 	go func() {
@@ -185,16 +202,18 @@ func (manager *BackupManager) Backup() error {
 
 		tx := models.Db.Begin()
 
-		res = tx.Delete(&binlog)
-		if res.Error != nil {
+		fmt.Println("binlog and backup ids", binlogId, backupId)
+
+		err = tx.Delete(&models.Binlog{}, binlogId).Error
+		if err != nil {
 			tx.Rollback()
-			return res.Error
+			return err
 		}
 
-		res := res.Delete(&backup)
-		if res.Error != nil {
+		err = tx.Delete(&models.Backup{}, backupId).Error
+		if err != nil {
 			tx.Rollback()
-			return res.Error
+			return err
 		}
 
 		tx.Commit()
