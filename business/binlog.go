@@ -26,14 +26,14 @@ type Binlog struct {
 	encrypted string
 }
 
-type BinlogManager struct {
+type BinlogBackupManager struct {
 	DB       *sql.DB
 	Database string
 }
 
-func InitBinlogManager(database string) (*BinlogManager, error) {
+func InitBinlogBackupManager(database string) (*BinlogBackupManager, error) {
 
-	manager := BinlogManager{
+	manager := BinlogBackupManager{
 		Database: database,
 	}
 
@@ -65,7 +65,7 @@ func InitBinlogManager(database string) (*BinlogManager, error) {
 	return &manager, nil
 }
 
-func (bm *BinlogManager) Backup() error {
+func (bm *BinlogBackupManager) Backup() error {
 
 	models.Init()
 
@@ -190,7 +190,7 @@ func (bm *BinlogManager) Backup() error {
 	return nil
 }
 
-func (bm *BinlogManager) Enable() error {
+func (bm *BinlogBackupManager) Enable() error {
 
 	//
 	file, err := os.OpenFile("/etc/mysql/mysql.conf.d/oversight-binlog.cnf", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
@@ -249,7 +249,7 @@ max_binlog_size=%dM
 	return nil
 }
 
-func (bm *BinlogManager) Disable() error {
+func (bm *BinlogBackupManager) Disable() error {
 
 	//
 	file, err := os.OpenFile("/etc/mysql/mysql.conf.d/oversight-binlog.cnf", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
@@ -308,7 +308,7 @@ disable-log-bin
 
 // check binlog status
 
-func (bm *BinlogManager) IsActive() (bool, error) {
+func (bm *BinlogBackupManager) IsActive() (bool, error) {
 
 	// connection to database server is possible
 	host := os.Getenv("DB_HOST")
@@ -349,7 +349,7 @@ func (bm *BinlogManager) IsActive() (bool, error) {
 	return value == "ON", nil
 }
 
-func (bm *BinlogManager) PurgeLogs() error {
+func (bm *BinlogBackupManager) PurgeLogs() error {
 
 	// connection to database server is possible
 	host := os.Getenv("DB_HOST")
@@ -389,7 +389,7 @@ func (bm *BinlogManager) PurgeLogs() error {
 
 // close current binary log and open a new one
 
-func (bm *BinlogManager) FlushLogs() error {
+func (bm *BinlogBackupManager) FlushLogs() error {
 
 	// connection to database server is possible
 	host := os.Getenv("DB_HOST")
@@ -427,7 +427,7 @@ func (bm *BinlogManager) FlushLogs() error {
 
 // list binary logs
 
-func (bm *BinlogManager) ListLogs() ([]Binlog, error) {
+func (bm *BinlogBackupManager) ListLogs() ([]Binlog, error) {
 
 	// connection to database server is possible
 	host := os.Getenv("DB_HOST")
@@ -478,7 +478,7 @@ func (bm *BinlogManager) ListLogs() ([]Binlog, error) {
 
 // get content of a binary log for a specific database
 
-func (bm *BinlogManager) GetAllDatabaseChanges(database, binlogPath string) ([]byte, error) {
+func (bm *BinlogBackupManager) GetAllDatabaseChanges(database, binlogPath string) ([]byte, error) {
 
 	programPath, err := exec.LookPath("mysqlbinlog")
 	if err != nil {
@@ -503,7 +503,7 @@ func (bm *BinlogManager) GetAllDatabaseChanges(database, binlogPath string) ([]b
 
 // get content of a binary log from/until a certain point in time
 
-func (bm *BinlogManager) GetDatabaseChangesWithinRange(database, binlogPath string, from, until time.Time) ([]byte, error) {
+func (bm *BinlogBackupManager) GetDatabaseChangesWithinRange(database, binlogPath string, from, until time.Time) ([]byte, error) {
 
 	programPath, err := exec.LookPath("mysqlbinlog")
 	if err != nil {

@@ -87,7 +87,7 @@ $ oversight backup demo_db`,
 		}
 
 		// backup binary logs
-		binlogManager, err := business.InitBinlogManager(databaseName)
+		binlogManager, err := business.InitBinlogBackupManager(databaseName)
 		if err != nil {
 			color.Red("Error occurred while preparing binlog manager => %s", err)
 			return err

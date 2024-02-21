@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-type BackupManager struct {
+type FullBackupManager struct {
 	Database      string
 	Filename      string
 	BackupMethod  methods.BackupMethod
@@ -34,7 +34,7 @@ func GetDefaultStorageDriver() string {
 	return string(storage.FileSystemType)
 }
 
-func InitBackupManager(database string, storageDriver string) (*BackupManager, error) {
+func InitBackupManager(database string, storageDriver string) (*FullBackupManager, error) {
 	filename := fmt.Sprintf("%d_full.sql", time.Now().Unix())
 
 	var driver storage.EngineType
@@ -56,7 +56,7 @@ func InitBackupManager(database string, storageDriver string) (*BackupManager, e
 		return nil, err
 	}
 
-	return &BackupManager{
+	return &FullBackupManager{
 		Database:      database,
 		Filename:      filename,
 		BackupMethod:  mysqlDump,
@@ -64,7 +64,7 @@ func InitBackupManager(database string, storageDriver string) (*BackupManager, e
 	}, nil
 }
 
-func (manager *BackupManager) getMasterLog() (string, int, error) {
+func (manager *FullBackupManager) getMasterLog() (string, int, error) {
 
 	host := os.Getenv("DB_HOST")
 	p := os.Getenv("DB_PORT")
@@ -102,7 +102,7 @@ func (manager *BackupManager) getMasterLog() (string, int, error) {
 	return filename, position, nil
 }
 
-func (manager *BackupManager) Backup() error {
+func (manager *FullBackupManager) Backup() error {
 
 	storageEngine := storage.GetStorageEngine(manager.StorageDriver, manager.Filename, manager.Database)
 
