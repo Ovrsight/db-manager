@@ -178,6 +178,8 @@ func (bm *BinlogManager) Backup() error {
 	}
 
 	// TODO: pass the relay to the job in charge of reading and uploading to storage
+	// TODO: use golang's ticker and timer to run tasks and jobs on a schedule instead of using cron jobs,
+	// TODO: oversight will run as a linux service
 	// TODO: create services, models & jobs folders to contain their specific files
 	// TODO: newly created models will have to be added in the `AutoMigrate` call within the models `init` function
 

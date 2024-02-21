@@ -4,17 +4,18 @@
     - [x] Filesystem
     - [x] Dropbox
   - [ ] Bin logs
-    - [ ] Backup binlogs of a specific database of a specific backup 
+    - [ ] Backup binlogs of a specific database of a specific backup
+    - [ ] Check the todos
+    - [ ] Clean current implementation to use (services, models & jobs)
   - [ ] Add proper error handling when either method or storage fail
-  - [ ] Recovery
   - [ ] MyDumper
-  - [ ] Percona Extra Backup
+  - [ ] Recovery
 - [ ] Users & privileges management
 - [ ] Configuration
-- [ ] Ovrsight mysql server <!-- Creating an ovrsight managed Mysql database server -->
-- [ ] Monitoring
+- [ ] Monitoring using [prometheus](https://prometheus.io/)
+- [ ] Add support for running as a service
+- [ ] Deploy the first version ever of **Oversight**
 - [ ] Replication
-- [ ] Horizontal scaling
 
 ### CLI client
 - [ ] All the features above
@@ -22,3 +23,8 @@
 ### Web client
 - [ ] All the features in CLI
 - [ ] MySql client
+
+### Future
+- [ ] Ovrsight mysql server <!-- Creating an ovrsight managed Mysql database server from scratch -->
+- [ ] Horizontal scaling
+- [ ] Percona Extra Backup as an additional backup method
