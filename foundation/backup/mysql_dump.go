@@ -1,4 +1,4 @@
-package methods
+package backup
 
 import (
 	"database/sql"
@@ -50,6 +50,8 @@ func (md *MysqlDump) Initialize() error {
 	if err != nil {
 		return err
 	}
+
+	defer db.Close()
 
 	err = db.Ping()
 	if err != nil {

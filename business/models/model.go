@@ -32,20 +32,18 @@ type Binlog struct {
 	BackedUp bool
 }
 
-var Db *gorm.DB
-
-func Init() {
+func Init() *gorm.DB {
 	dbFile := os.Getenv("SYSTEM_DB_FILE")
 
-	var err error
-
-	Db, err = gorm.Open(sqlite.Open(dbFile), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(dbFile), &gorm.Config{})
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	err = Db.AutoMigrate(&Database{}, &Backup{}, &Binlog{})
+	err = db.AutoMigrate(&Database{}, &Backup{}, &Binlog{})
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	return db
 }

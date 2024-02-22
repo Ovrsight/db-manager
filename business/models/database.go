@@ -6,9 +6,9 @@ import (
 	"time"
 )
 
-func (d *Database) FindOrCreate(database string) error {
+func (d *Database) CreateIfNotExisting(db *gorm.DB, database string) error {
 
-	res := Db.First(&d, "name = ?", database)
+	res := db.First(&d, "name = ?", database)
 
 	if res.Error == nil {
 		return nil
@@ -23,7 +23,7 @@ func (d *Database) FindOrCreate(database string) error {
 		d.FirstBackupTime = now
 		d.LatestBackupTime = now
 
-		res = Db.Create(d)
+		res = db.Create(d)
 
 		if res.Error != nil {
 			return res.Error

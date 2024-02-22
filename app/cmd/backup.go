@@ -2,12 +2,13 @@ package cmd
 
 import (
 	"github.com/fatih/color"
-	"github.com/nizigama/ovrsight/business"
+	"github.com/nizigama/ovrsight/business/services"
+	"github.com/nizigama/ovrsight/foundation/storage"
 	"github.com/spf13/cobra"
 	"time"
 )
 
-var backupBinlog bool
+var onlyBinlog bool
 
 // BackupCmd represents the databases.backup command
 var backupCmd = &cobra.Command{
@@ -37,7 +38,10 @@ With storage driver
 $ oversight backup demo_db dropbox
 
 Without storage driver. Filesystem will be used by default
-$ oversight backup demo_db`,
+$ oversight backup demo_db
+
+Backup only the binary logs
+$ oversight backup demo_db dropbox --binlog`,
 	Args: func(cmd *cobra.Command, args []string) error {
 
 		if err := cobra.MinimumNArgs(1)(cmd, args); err != nil {
@@ -58,53 +62,52 @@ $ oversight backup demo_db`,
 
 		return nil
 	},
-	ValidArgs: business.GetSupportedStorageDrivers(),
+	ValidArgs: []string{storage.FileSystemType, storage.DropboxType},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		databaseName := args[0]
-		storageDriver := business.GetDefaultStorageDriver()
+		storageEngine := storage.FileSystemType
 
 		if len(args) == 2 {
 
-			storageDriver = args[1]
+			storageEngine = args[1]
 		}
 
-		if !backupBinlog {
-			backupManager, err := business.InitBackupManager(databaseName, storageDriver)
+		if !onlyBinlog {
+			backupService, err := services.InitBackupService(databaseName, storageEngine)
 			if err != nil {
-				color.Red("Error occurred while preparing backup method up => %s", err)
+				color.Red("Error occurred while preparing backup mechanism up => %s", err)
 				return err
 			}
 
-			err = backupManager.Backup()
+			err = backupService.Backup()
 			if err != nil {
 				color.Red("Error occurred while backing up => %s", err)
 				return err
 			}
 
-			color.Green("%s => The '%s' database has been successfully backed up using the %s driver\n", time.Now().Format(time.DateTime), databaseName, storageDriver)
+			color.Green("%s => The '%s' database has been successfully backed up using the %s driver\n", time.Now().Format(time.DateTime), databaseName, storageEngine)
 
 			return nil
 		}
 
-		// backup binary logs
-		binlogManager, err := business.InitBinlogBackupManager(databaseName)
+		binlogService, err := services.InitBinlogService(databaseName)
 		if err != nil {
 			color.Red("Error occurred while preparing binlog manager => %s", err)
 			return err
 		}
 
-		err = binlogManager.Backup()
+		err = binlogService.Backup(storageEngine)
 		if err != nil {
 			color.Red("Error occurred while backing up binary logs => %s", err)
 			return err
 		}
 
-		color.Green("%s => The '%s' database's binary logs have been successfully backed up using the %s driver\n", time.Now().Format(time.DateTime), databaseName, storageDriver)
+		color.Green("%s => The '%s' database's binary logs have been successfully backed up using the %s driver\n", time.Now().Format(time.DateTime), databaseName, storageEngine)
 
 		return nil
 	},
 }
 
 func init() {
-	backupCmd.Flags().BoolVarP(&backupBinlog, "binlog", "b", false, "Backup binary logs of the last full backup")
+	backupCmd.Flags().BoolVarP(&onlyBinlog, "binlog", "b", false, "Backup binary logs of the last full backup")
 }

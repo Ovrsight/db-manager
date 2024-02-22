@@ -4,29 +4,28 @@ type Engine interface {
 	Save(receiver <-chan []byte) error
 }
 
-type EngineType string
-
 const (
-	FileSystemType EngineType = "filesystem"
-	DropboxType    EngineType = "dropbox"
+	FileSystemType string = "filesystem"
+	DropboxType    string = "dropbox"
 )
 
-func GetStorageEngine(engineType EngineType, fileName, database string) Engine {
+func GetStorageEngine(engineType, database, filename string) Engine {
+
 	switch engineType {
 	case FileSystemType:
 		return &FileSystem{
-			Filename: fileName,
 			Database: database,
+			Filename: filename,
 		}
 	case DropboxType:
 		return &Dropbox{
-			Filename: fileName,
 			Database: database,
+			Filename: filename,
 		}
 	default:
 		return &FileSystem{
-			Filename: fileName,
 			Database: database,
+			Filename: filename,
 		}
 	}
 }
