@@ -3,10 +3,10 @@
   - [x] Mysql Dump
     - [x] Filesystem
     - [x] Dropbox
-  - [ ] Bin logs
-    - [ ] Backup binlogs of a specific database of a specific backup
-    - [ ] Check the todos
-    - [ ] Clean current implementation to use (services, models & jobs)
+  - [x] Bin logs
+    - [x] Backup binlogs of a specific database of a specific backup
+    - [x] Check the todos
+    - [x] Clean current implementation to use (services, models & jobs)
   - [ ] Add proper error handling when either method or storage fail
   - [ ] MyDumper
   - [ ] Recovery

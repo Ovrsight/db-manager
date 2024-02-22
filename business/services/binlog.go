@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"database/sql"
 	"errors"
+	"fmt"
 	"github.com/nizigama/ovrsight/business/jobs"
 	"github.com/nizigama/ovrsight/business/models"
 	"github.com/nizigama/ovrsight/foundation/backup"
@@ -13,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"slices"
+	"time"
 )
 
 type BinlogService struct {
@@ -153,7 +155,8 @@ func (bs *BinlogService) Backup(storageEngine string) error {
 
 			binlog := models.Binlog{
 				BackupId: int64(bck.ID),
-				Filename: v.Name,
+				Filename: fmt.Sprintf("%s_%d", v.Name, time.Now().Unix()),
+				LogName:  v.Name,
 				Size:     v.Size,
 				Position: 0,
 			}
@@ -221,6 +224,7 @@ func (bs *BinlogService) ProcessBinLogs(storageEngine string) error {
 			Database:         bs.Database,
 			StartingPosition: log.Position,
 			Filename:         log.Filename,
+			LogName:          log.LogName,
 		}
 
 		if err := method.Initialize(); err != nil {
@@ -234,6 +238,8 @@ func (bs *BinlogService) ProcessBinLogs(storageEngine string) error {
 		if !backupSuccessful {
 			return errors.New("failed to process the backup")
 		}
+
+		bs.DB.Model(&log).Updates(models.Binlog{BackedUp: true})
 	}
 
 	return nil

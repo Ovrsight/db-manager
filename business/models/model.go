@@ -27,6 +27,7 @@ type Binlog struct {
 	gorm.Model
 	BackupId int64
 	Filename string
+	LogName  string
 	Size     int64
 	Position int64
 	BackedUp bool

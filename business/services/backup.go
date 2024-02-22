@@ -89,7 +89,8 @@ func (bckp *BackupService) Backup() error {
 		}
 
 		binlogModel.BackupId = int64(backupModel.ID)
-		binlogModel.Filename = binlogName
+		binlogModel.Filename = fmt.Sprintf("%s_%d", binlogName, time.Now().Unix())
+		binlogModel.LogName = binlogName
 		binlogModel.Size = position
 		binlogModel.Position = position
 

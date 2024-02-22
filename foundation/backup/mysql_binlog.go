@@ -15,6 +15,7 @@ type MysqlBinlog struct {
 	Database         string
 	StartingPosition int64
 	Filename         string
+	LogName          string
 	host             string
 	port             int
 	user             string
@@ -66,7 +67,7 @@ func (mb *MysqlBinlog) Initialize() error {
 
 func (mb *MysqlBinlog) Generate(sender chan<- []byte) error {
 
-	binlogPath := fmt.Sprintf("/var/lib/mysql/%s", mb.Filename)
+	binlogPath := fmt.Sprintf("/var/lib/mysql/%s", mb.LogName)
 
 	cmd := exec.Command(
 		fmt.Sprintf("%s", mb.programPath),
