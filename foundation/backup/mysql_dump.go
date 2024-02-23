@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -66,9 +67,13 @@ func (md *MysqlDump) Initialize() error {
 	return nil
 }
 
-func (md *MysqlDump) Generate(sender chan<- []byte) error {
+func (md *MysqlDump) Generate(sender chan<- []byte, failureChan chan struct{}) error {
 
-	cmd := exec.Command(
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	cmd := exec.CommandContext(
+		ctx,
 		fmt.Sprintf("%s", md.programPath),
 		fmt.Sprintf("-u%s", md.user),
 		fmt.Sprintf("-p%s", md.password),
@@ -92,6 +97,23 @@ func (md *MysqlDump) Generate(sender chan<- []byte) error {
 		return err
 	}
 
+	savingBackupFailed := false
+	completed := make(chan struct{}, 1)
+
+	go func(flag *bool) {
+
+		select {
+		case _ = <-failureChan:
+			*flag = true
+			break
+		case _ = <-completed:
+			break
+		}
+	}(&savingBackupFailed)
+	defer func() {
+		completed <- struct{}{}
+	}()
+
 	for {
 
 		content := make([]byte, bufferSize) // reading 5MB
@@ -104,7 +126,14 @@ func (md *MysqlDump) Generate(sender chan<- []byte) error {
 			return err
 		}
 
-		sender <- content[:read]
+		if !savingBackupFailed {
+			sender <- content[:read]
+		}
+
+		if savingBackupFailed {
+			ctx.Done()
+			break
+		}
 	}
 
 	err = cmd.Wait()

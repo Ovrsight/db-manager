@@ -217,6 +217,7 @@ func (dbx *Dropbox) Save(receiver <-chan []byte, failureChan chan struct{}) erro
 	var offset int64
 	singleChunk := true
 	tasksToComplete := make(chan struct{}, concurrentTasks)
+	completed := make(chan struct{}, 1)
 	wg := sync.WaitGroup{}
 
 	dropboxBuf := bytes.Buffer{}
@@ -224,11 +225,17 @@ func (dbx *Dropbox) Save(receiver <-chan []byte, failureChan chan struct{}) erro
 	generatingBackupFailed := false
 
 	go func(flag *bool) {
+
 		select {
 		case _ = <-failureChan:
 			*flag = true
+		case _ = <-completed:
+			break
 		}
 	}(&generatingBackupFailed)
+	defer func() {
+		completed <- struct{}{}
+	}()
 
 	for {
 

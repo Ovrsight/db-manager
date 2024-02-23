@@ -3,9 +3,9 @@ package backup
 import "log"
 
 type Method interface {
-	Initialize() error                   // do some setup or checks
-	Generate(sender chan<- []byte) error // get the backup data
-	Clean(sender chan<- []byte) error    // do some cleaning after backup
+	Initialize() error                                              // do some setup or checks
+	Generate(sender chan<- []byte, failureChan chan struct{}) error // get the backup data
+	Clean(sender chan<- []byte) error                               // do some cleaning after backup
 }
 
 const bufferSize int64 = 5000000

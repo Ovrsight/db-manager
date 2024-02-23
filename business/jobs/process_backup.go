@@ -26,8 +26,7 @@ func (bp *BackupProcessor) ProcessBackup(method backup.Method, engine storage.En
 		defer wg.Done()
 
 		// generate backup bytes
-		err := method.Generate(dataChan)
-
+		err := method.Generate(dataChan, failureChan)
 		if err != nil {
 			log.Println("Backup failure:", err)
 			failureChan <- struct{}{}
@@ -44,7 +43,9 @@ func (bp *BackupProcessor) ProcessBackup(method backup.Method, engine storage.En
 		err := se.Save(dataChan, failureChan)
 
 		if err != nil {
-			log.Fatalln("Storage failure:", err)
+			log.Println("Storage failure:", err)
+			failureChan <- struct{}{}
+			return
 		}
 		backupSuccessful = true
 	}(engine)
