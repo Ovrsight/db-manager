@@ -7,7 +7,7 @@
     - [x] Backup binlogs of a specific database of a specific backup
     - [x] Check the todos
     - [x] Clean current implementation to use (services, models & jobs)
-  - [ ] Add proper error handling when either method or storage fail
+  - [x] Add proper error handling when either method or storage fail
   - [ ] MyDumper
   - [ ] Recovery
 - [ ] Users & privileges management
