@@ -199,7 +199,7 @@ func (dbx *Dropbox) finish(sessionID string) error {
 	return nil
 }
 
-func (dbx *Dropbox) Save(receiver <-chan []byte) error {
+func (dbx *Dropbox) Save(receiver <-chan []byte, failureChan chan struct{}) error {
 
 	sessionID, err := dbx.start()
 	if err != nil {
@@ -220,6 +220,15 @@ func (dbx *Dropbox) Save(receiver <-chan []byte) error {
 	wg := sync.WaitGroup{}
 
 	dropboxBuf := bytes.Buffer{}
+
+	generatingBackupFailed := false
+
+	go func(flag *bool) {
+		select {
+		case _ = <-failureChan:
+			*flag = true
+		}
+	}(&generatingBackupFailed)
 
 	for {
 
@@ -265,6 +274,10 @@ func (dbx *Dropbox) Save(receiver <-chan []byte) error {
 
 			log.Println("Processing task:", id)
 
+			if generatingBackupFailed {
+				return
+			}
+
 			err = dbx.append(sessionID, offsetPoint, payloadData, lastChunk)
 			if err != nil {
 				log.Println("Failed task:", id)
@@ -283,7 +296,7 @@ func (dbx *Dropbox) Save(receiver <-chan []byte) error {
 		}
 	}
 
-	if singleChunk {
+	if singleChunk && !generatingBackupFailed {
 		err = dbx.append(sessionID, offset, dropboxBuf.Bytes(), true)
 		if err != nil {
 			return err
@@ -292,7 +305,7 @@ func (dbx *Dropbox) Save(receiver <-chan []byte) error {
 
 	wg.Wait()
 
-	for dropboxBuf.Len() > 0 {
+	for dropboxBuf.Len() > 0 && generatingBackupFailed {
 
 		payloadData := dropboxBuf.Next(payloadSize)
 
@@ -302,9 +315,12 @@ func (dbx *Dropbox) Save(receiver <-chan []byte) error {
 		}
 	}
 
-	err = dbx.finish(sessionID)
-	if err != nil {
-		return err
+	if !generatingBackupFailed {
+
+		err = dbx.finish(sessionID)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

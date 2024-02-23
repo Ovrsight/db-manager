@@ -1,7 +1,7 @@
 package storage
 
 type Engine interface {
-	Save(receiver <-chan []byte) error
+	Save(receiver <-chan []byte, failureChan chan struct{}) error
 }
 
 const (

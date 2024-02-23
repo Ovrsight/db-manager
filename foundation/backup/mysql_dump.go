@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/mock"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"strconv"
@@ -95,7 +94,7 @@ func (md *MysqlDump) Generate(sender chan<- []byte) error {
 
 	for {
 
-		content := make([]byte, 5000000) // reading 5MB
+		content := make([]byte, bufferSize) // reading 5MB
 
 		read, err := outPipe.Read(content)
 		if err != nil {
@@ -112,7 +111,7 @@ func (md *MysqlDump) Generate(sender chan<- []byte) error {
 	if err != nil {
 		execErr := &exec.ExitError{}
 		errors.As(err, &execErr)
-		log.Fatalln(string(execErr.Stderr))
+		return errors.New(string(execErr.Stderr))
 	}
 
 	return nil

@@ -92,7 +92,7 @@ func (mb *MysqlBinlog) Generate(sender chan<- []byte) error {
 
 	for {
 
-		content := make([]byte, 5000000) // reading 5MB
+		content := make([]byte, bufferSize) // reading 5MB
 
 		read, err := outPipe.Read(content)
 		if err != nil {

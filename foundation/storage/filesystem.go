@@ -11,7 +11,7 @@ type FileSystem struct {
 	Database string
 }
 
-func (fs *FileSystem) Save(receiver <-chan []byte) error {
+func (fs *FileSystem) Save(receiver <-chan []byte, failureChan chan struct{}) error {
 
 	filesystemPath := os.Getenv("FILESYSTEM_PATH")
 
@@ -41,14 +41,31 @@ func (fs *FileSystem) Save(receiver <-chan []byte) error {
 
 	defer file.Close()
 
-	for content := range receiver {
+	waitingForData := true
 
-		_, err = file.Write(content)
-		if err != nil {
+	for waitingForData {
 
+		select {
+		case content, moreComing := <-receiver:
+
+			_, err = file.Write(content)
+			if err != nil {
+
+				os.Remove(fs.Filename)
+				return err
+			}
+
+			if !moreComing {
+				waitingForData = false
+				break
+			}
+		case _ = <-failureChan:
 			os.Remove(fs.Filename)
-			return err
+
+			waitingForData = false
+			break
 		}
+
 	}
 
 	return nil

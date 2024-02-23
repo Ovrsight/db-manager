@@ -8,6 +8,8 @@ type Method interface {
 	Clean(sender chan<- []byte) error    // do some cleaning after backup
 }
 
+const bufferSize int64 = 5000000
+
 func GetBackupMethod(methodName, database string) Method {
 
 	switch methodName {

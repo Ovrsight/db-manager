@@ -14,9 +14,11 @@ func (bp *BackupProcessor) ProcessBackup(method backup.Method, engine storage.En
 
 	wg := sync.WaitGroup{}
 	backupSuccessful := false
+	generatingSuccessful := false
 
 	wg.Add(2)
 	dataChan := make(chan []byte)
+	failureChan := make(chan struct{})
 
 	go func() {
 		// backup method cleaner
@@ -27,8 +29,11 @@ func (bp *BackupProcessor) ProcessBackup(method backup.Method, engine storage.En
 		err := method.Generate(dataChan)
 
 		if err != nil {
-			log.Fatalln("Backup failure:", err)
+			log.Println("Backup failure:", err)
+			failureChan <- struct{}{}
+			return
 		}
+		generatingSuccessful = true
 	}()
 
 	go func(se storage.Engine) {
@@ -36,7 +41,7 @@ func (bp *BackupProcessor) ProcessBackup(method backup.Method, engine storage.En
 		defer wg.Done()
 
 		// upload backup bytes
-		err := se.Save(dataChan)
+		err := se.Save(dataChan, failureChan)
 
 		if err != nil {
 			log.Fatalln("Storage failure:", err)
@@ -46,5 +51,5 @@ func (bp *BackupProcessor) ProcessBackup(method backup.Method, engine storage.En
 
 	wg.Wait()
 
-	return backupSuccessful
+	return backupSuccessful && generatingSuccessful
 }
