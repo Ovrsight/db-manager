@@ -13,7 +13,7 @@ var onlyBinlog bool
 // BackupCmd represents the databases.backup command
 var backupCmd = &cobra.Command{
 	Use:   "backup",
-	Short: "Select a database to backup using one or multiple storage systems",
+	Short: "Backup a database to a storage engine",
 	Long: `===============
 Database backup
 ===============
@@ -27,7 +27,7 @@ This tool will help you backup a given database to one or multiple storage provi
 =========
 Arguments
 =========
-You need to pass to the command two arguments, the first shall always be the name of the database want to backup
+You need to pass to the command two arguments, the first shall always be the name of the database you want to backup
 and the second, can be omitted, is the driver used to backup the database.
 The second argument can be any of the following: filesystem & dropbox.
 If the storage driver is omitted, the filesystem driver will be used by default.
