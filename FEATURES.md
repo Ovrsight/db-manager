@@ -8,7 +8,6 @@
     - [x] Check the todos
     - [x] Clean current implementation to use (services, models & jobs)
   - [x] Add proper error handling when either method or storage fail
-  - [ ] MyDumper
   - [ ] Recovery
 - [ ] Users & privileges management
 - [ ] Configuration
@@ -28,3 +27,4 @@
 - [ ] Ovrsight mysql server <!-- Creating an ovrsight managed Mysql database server from scratch -->
 - [ ] Horizontal scaling
 - [ ] Percona Extra Backup as an additional backup method
+- [ ] MyDumper as an additional backup method
