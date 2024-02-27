@@ -70,6 +70,11 @@ func (bckp *BackupService) Backup() error {
 			return err
 		}
 
+		err = tx.Model(databaseModel).Update("latest_backup_time", backupModel.BackupTime).Error
+		if err != nil {
+			return err
+		}
+
 		err = tx.Create(backupModel).Error
 		if err != nil {
 			return err
