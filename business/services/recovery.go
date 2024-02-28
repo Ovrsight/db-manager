@@ -146,6 +146,8 @@ func (rs *RecoveryService) Recover() error {
 	//- apply their changes up to the given point in time
 	//- delete all local copies of the binary log files
 
+	// TODO: implement new storage features in the dropbox engine
+
 	return nil
 }
 
