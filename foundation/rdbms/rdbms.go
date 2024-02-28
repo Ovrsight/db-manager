@@ -8,6 +8,8 @@ import (
 
 type Rdbms interface {
 	OpenConnection() (*sql.DB, error)
+	Close() error
+	Restore(backupFile, databaseName string) error
 }
 
 const (

@@ -1,10 +1,11 @@
 HOST = 192.168.64.18
 
 run:
-	env GOOS=linux go build -o cli app/cli/*
-	scp cli ubuntu@$(HOST):/home/ubuntu/cli
-	scp .env ubuntu@$(HOST):/home/ubuntu/.env
-	ssh ubuntu@$(HOST) './cli'
+	GOOS=linux go build -o bin/cli app/*.go
+	scp bin/cli root@$(HOST):/root/cli
+	scp .env root@$(HOST):/root/.env
+	#ssh root@$(HOST) './cli backup world filesystem'
+	ssh root@$(HOST) './cli recover world "2024-03-25 08:00:00"'
 
 test:
 	ginkgo -v ./...

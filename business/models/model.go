@@ -20,6 +20,7 @@ type Backup struct {
 	DatabaseId int64
 	Filename   string
 	BackupTime time.Time
+	Size       int64
 	IsActive   bool
 }
 

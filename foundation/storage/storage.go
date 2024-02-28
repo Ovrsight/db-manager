@@ -1,7 +1,8 @@
 package storage
 
 type Engine interface {
-	Save(receiver <-chan []byte, failureChan chan struct{}) error
+	Save(receiver <-chan []byte, failureChan chan struct{}) (int, error)
+	Retrieve(fileName string) (location string, err error)
 }
 
 const (

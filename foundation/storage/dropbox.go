@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/mock"
 	"io"
 	"log"
 	"net/http"
@@ -18,10 +17,6 @@ import (
 type Dropbox struct {
 	Filename string
 	Database string
-}
-
-type DropboxMock struct {
-	mock.Mock
 }
 
 type uploadError struct {
@@ -199,11 +194,11 @@ func (dbx *Dropbox) finish(sessionID string) error {
 	return nil
 }
 
-func (dbx *Dropbox) Save(receiver <-chan []byte, failureChan chan struct{}) error {
+func (dbx *Dropbox) Save(receiver <-chan []byte, failureChan chan struct{}) (int, error) {
 
 	sessionID, err := dbx.start()
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	concurrency := os.Getenv("DROPBOX_CONCURRENT_REQUESTS")
@@ -221,6 +216,7 @@ func (dbx *Dropbox) Save(receiver <-chan []byte, failureChan chan struct{}) erro
 	wg := sync.WaitGroup{}
 
 	dropboxBuf := bytes.Buffer{}
+	uploadedSize := 0
 
 	generatingBackupFailed := false
 
@@ -243,7 +239,7 @@ func (dbx *Dropbox) Save(receiver <-chan []byte, failureChan chan struct{}) erro
 
 		_, err := dropboxBuf.Write(data)
 		if err != nil {
-			return err
+			return 0, err
 		}
 
 		if dropboxBuf.Len() < payloadSize && offset == 0 {
@@ -266,6 +262,7 @@ func (dbx *Dropbox) Save(receiver <-chan []byte, failureChan chan struct{}) erro
 			}
 		}
 
+		uploadedSize += dropboxBuf.Len()
 		payloadData := dropboxBuf.Next(payloadSize)
 
 		taskID := uuid.New().String()
@@ -304,9 +301,12 @@ func (dbx *Dropbox) Save(receiver <-chan []byte, failureChan chan struct{}) erro
 	}
 
 	if singleChunk && !generatingBackupFailed {
+
+		uploadedSize = dropboxBuf.Len()
+
 		err = dbx.append(sessionID, offset, dropboxBuf.Bytes(), true)
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
 
@@ -314,11 +314,12 @@ func (dbx *Dropbox) Save(receiver <-chan []byte, failureChan chan struct{}) erro
 
 	for dropboxBuf.Len() > 0 && generatingBackupFailed {
 
+		uploadedSize += dropboxBuf.Len()
 		payloadData := dropboxBuf.Next(payloadSize)
 
 		err = dbx.append(sessionID, offset, payloadData, len(payloadData) < payloadSize)
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
 
@@ -326,15 +327,16 @@ func (dbx *Dropbox) Save(receiver <-chan []byte, failureChan chan struct{}) erro
 
 		err = dbx.finish(sessionID)
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
 
-	return nil
+	return uploadedSize, nil
 }
 
-func (dbx *DropboxMock) Save(receiver <-chan []byte) error {
+func (dbx *Dropbox) Retrieve(fileName string) (location string, err error) {
 
-	args := dbx.Called(<-receiver)
-	return args.Error(0)
+	// implement
+
+	return
 }

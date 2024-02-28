@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"errors"
 	"github.com/nizigama/ovrsight/foundation/backup"
 	"github.com/nizigama/ovrsight/foundation/storage"
 	"log"
@@ -10,11 +11,12 @@ import (
 type BackupProcessor struct {
 }
 
-func (bp *BackupProcessor) ProcessBackup(method backup.Method, engine storage.Engine) bool {
+func (bp *BackupProcessor) ProcessBackup(method backup.Method, engine storage.Engine, onSuccess func(size int)) error {
 
 	wg := sync.WaitGroup{}
 	backupSuccessful := false
 	generatingSuccessful := false
+	uploadedSize := 0
 
 	wg.Add(2)
 	dataChan := make(chan []byte)
@@ -40,17 +42,25 @@ func (bp *BackupProcessor) ProcessBackup(method backup.Method, engine storage.En
 		defer wg.Done()
 
 		// upload backup bytes
-		err := se.Save(dataChan, failureChan)
+		uploaded, err := se.Save(dataChan, failureChan)
 
 		if err != nil {
 			log.Println("Storage failure:", err)
 			failureChan <- struct{}{}
 			return
 		}
+
 		backupSuccessful = true
+		uploadedSize = uploaded
 	}(engine)
 
 	wg.Wait()
 
-	return backupSuccessful && generatingSuccessful
+	if !backupSuccessful || !generatingSuccessful {
+		return errors.New("failed to process the backup")
+	}
+
+	onSuccess(uploadedSize)
+
+	return nil
 }

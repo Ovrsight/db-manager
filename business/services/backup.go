@@ -1,13 +1,13 @@
 package services
 
 import (
-	"errors"
 	"fmt"
 	"github.com/nizigama/ovrsight/business/jobs"
 	"github.com/nizigama/ovrsight/business/models"
 	"github.com/nizigama/ovrsight/foundation/backup"
 	"github.com/nizigama/ovrsight/foundation/storage"
 	"gorm.io/gorm"
+	"log"
 	"os"
 	"time"
 )
@@ -104,13 +104,9 @@ func (bckp *BackupService) Backup() error {
 			return err
 		}
 
-		backupSuccessful := new(jobs.BackupProcessor).ProcessBackup(bckp.BackupMethod, bckp.StorageEngine)
+		err = new(jobs.BackupProcessor).ProcessBackup(bckp.BackupMethod, bckp.StorageEngine, bckp.updateBackupSize(tx, backupModel.ID))
 		if err != nil {
 			return err
-		}
-
-		if !backupSuccessful {
-			return errors.New("failed to process the backup")
 		}
 
 		return nil
@@ -130,4 +126,14 @@ func (bckp *BackupService) Close() error {
 	}
 
 	return nil
+}
+
+func (bckp *BackupService) updateBackupSize(database *gorm.DB, backupID uint) func(int) {
+
+	return func(size int) {
+		err := database.Model(&models.Backup{}).Where("id = ?", backupID).Update("size", size).Error
+		if err != nil {
+			log.Println(err)
+		}
+	}
 }

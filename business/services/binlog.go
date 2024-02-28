@@ -233,10 +233,10 @@ func (bs *BinlogService) ProcessBinLogs(storageEngine string) error {
 
 		engine := storage.GetStorageEngine(storageEngine, bs.Database, log.Filename)
 
-		backupSuccessful := new(jobs.BackupProcessor).ProcessBackup(method, engine)
+		err := new(jobs.BackupProcessor).ProcessBackup(method, engine, nil)
 
-		if !backupSuccessful {
-			return errors.New("failed to process the backup")
+		if err != nil {
+			return err
 		}
 
 		bs.DB.Model(&log).Updates(models.Binlog{BackedUp: true})

@@ -11,32 +11,57 @@ type FileSystem struct {
 	Database string
 }
 
-func (fs *FileSystem) Save(receiver <-chan []byte, failureChan chan struct{}) error {
-
+func (fs *FileSystem) getFilePath() string {
 	filesystemPath := os.Getenv("FILESYSTEM_PATH")
 
-	if filesystemPath == "" || filesystemPath == "/" {
-		filesystemPath = "./"
-	}
+	wd, _ := os.Getwd()
+
+	filesystemPath = fmt.Sprintf("%s/%s", wd, filesystemPath)
+
+	filesystemPath = strings.ReplaceAll(filesystemPath, "//", "/")
+
+	filesystemPath = strings.TrimSuffix(filesystemPath, "/")
 
 	steps := strings.Split(filesystemPath, "/")
 
 	steps = append(steps, fs.Database)
 
-	path := strings.Join(steps, "/")
+	return strings.Join(steps, "/")
+}
 
-	path = strings.ReplaceAll(path, "//", "/")
+func (fs *FileSystem) Retrieve(fileName string) (location string, err error) {
+
+	path := fs.getFilePath()
+
+	location = fmt.Sprintf("%s/%s", path, fileName)
+
+	var f *os.File
+
+	f, err = os.Open(location)
+	if err != nil {
+		return
+	}
+
+	f.Close()
+
+	return
+}
+
+func (fs *FileSystem) Save(receiver <-chan []byte, failureChan chan struct{}) (int, error) {
+
+	path := fs.getFilePath()
+	writtenSize := 0
 
 	err := os.MkdirAll(path, 0555)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	fs.Filename = fmt.Sprintf("%s/%s", path, fs.Filename)
 
 	file, err := os.Create(fs.Filename)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	defer file.Close()
@@ -48,11 +73,12 @@ func (fs *FileSystem) Save(receiver <-chan []byte, failureChan chan struct{}) er
 		select {
 		case content, moreComing := <-receiver:
 
-			_, err = file.Write(content)
+			written, err := file.Write(content)
+			writtenSize += written
 			if err != nil {
 
 				os.Remove(fs.Filename)
-				return err
+				return 0, err
 			}
 
 			if !moreComing {
@@ -68,5 +94,5 @@ func (fs *FileSystem) Save(receiver <-chan []byte, failureChan chan struct{}) er
 
 	}
 
-	return nil
+	return writtenSize, nil
 }
