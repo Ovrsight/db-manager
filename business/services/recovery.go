@@ -19,6 +19,7 @@ type RecoveryService struct {
 	DB            *gorm.DB
 	Filename      string
 	Rdbms         rdbms.Rdbms
+	binlogService *BinlogService
 }
 
 func InitRecoveryService(db, storageEngine string, moment time.Time) (*RecoveryService, error) {
@@ -36,12 +37,18 @@ func InitRecoveryService(db, storageEngine string, moment time.Time) (*RecoveryS
 
 	engine := storage.GetStorageEngine(storageEngine, db, "")
 
+	logService, err := InitBinlogService(db)
+	if err != nil {
+		return nil, err
+	}
+
 	service := RecoveryService{
 		Database:      db,
 		PointInTime:   moment,
 		DB:            dbConn,
 		Rdbms:         dbms,
 		StorageEngine: engine,
+		binlogService: logService,
 	}
 
 	return &service, nil
@@ -131,19 +138,42 @@ func (rs *RecoveryService) Recover() error {
 	}
 
 	//- import backup using mysql
-	// TODO: move the functions from the binlog in business to the binlog in services
-	// TODO: disable binary logs before restoring
+	err = rs.binlogService.Disable(rs.Database)
+	if err != nil {
+		return err
+	}
+
 	err = rs.Rdbms.Restore(fileLocation, rs.Database)
 	if err != nil {
 		return err
 	}
-	// TODO: enable binary logs after restoring
+
+	err = rs.binlogService.Enable(rs.Database)
+	if err != nil {
+		return err
+	}
 
 	// TODO: update retrieve interface method to accept variadic parameters, implement a DeleteRetrievals method in storage engines
 
 	//- delete local copy of the backup file using the `DeleteRetrievals` method. For the filesystem engine it will do nothing since it didn't retrieve anything
 	//- download all binary log files of the backup
 	//- apply their changes up to the given point in time
+
+	//programPath, err := exec.LookPath("mysqlbinlog")
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//cmd := exec.Command(
+	//	fmt.Sprintf("%s", programPath),
+	//	fmt.Sprintf("--database"),
+	//	fmt.Sprintf(database),
+	//	fmt.Sprintf("--disable-log-bin"),
+	//	fmt.Sprintf("--start-datetime=%s", from.Format(time.DateTime)),
+	//	fmt.Sprintf("--stop-datetime=%s", until.Format(time.DateTime)),
+	//	fmt.Sprintf(binlogPath),
+	//)
+
 	//- delete all local copies of the binary log files
 
 	// TODO: implement new storage features in the dropbox engine
@@ -152,6 +182,8 @@ func (rs *RecoveryService) Recover() error {
 }
 
 func (rs *RecoveryService) Close() error {
+
+	rs.binlogService.Close()
 
 	if rs.DB != nil {
 		db, _ := rs.DB.DB()

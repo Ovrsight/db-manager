@@ -13,6 +13,7 @@ type Database struct {
 	Name             string
 	FirstBackupTime  time.Time
 	LatestBackupTime time.Time
+	EnableLogging    bool
 }
 
 type Backup struct {

@@ -11,6 +11,7 @@ import (
 	"github.com/nizigama/ovrsight/foundation/rdbms"
 	"github.com/nizigama/ovrsight/foundation/storage"
 	"gorm.io/gorm"
+	"log"
 	"os"
 	"os/exec"
 	"slices"
@@ -191,21 +192,6 @@ func (bs *BinlogService) GetMasterLog() (string, int64, error) {
 	return filename, position, nil
 }
 
-func (bs *BinlogService) Close() error {
-
-	if bs.Rdbms != nil {
-
-		bs.Rdbms.Close()
-	}
-
-	if bs.DB != nil {
-		db, _ := bs.DB.DB()
-		db.Close()
-	}
-
-	return nil
-}
-
 func (bs *BinlogService) ProcessBinLogs(storageEngine string) error {
 
 	var unprocessedLogs []models.Binlog
@@ -240,6 +226,231 @@ func (bs *BinlogService) ProcessBinLogs(storageEngine string) error {
 		}
 
 		bs.DB.Model(&log).Updates(models.Binlog{BackedUp: true})
+	}
+
+	return nil
+}
+
+func (bs *BinlogService) Enable(strictlyThese ...string) error {
+
+	if len(strictlyThese) > 0 {
+		err := bs.DB.Model(&models.Database{}).Where(map[string]interface{}{"name": strictlyThese}).Update("enable_logging", true).Error
+		if err != nil {
+			return err
+		}
+	} else {
+		err := bs.DB.Model(&models.Database{}).Update("enable_logging", true).Error
+		if err != nil {
+			return err
+		}
+	}
+
+	err := bs.updateConfiguration()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (bs *BinlogService) Disable(strictlyThese ...string) error {
+
+	if len(strictlyThese) > 0 {
+		err := bs.DB.Model(&models.Database{}).Where(map[string]interface{}{"name": strictlyThese}).Update("enable_logging", false).Error
+		if err != nil {
+			return err
+		}
+	} else {
+		err := bs.DB.Model(&models.Database{}).Update("enable_logging", false).Error
+		if err != nil {
+			return err
+		}
+	}
+
+	err := bs.updateConfiguration()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (bs *BinlogService) IsActive() (bool, error) {
+
+	row := bs.Rdbms.QueryRow("show variables like 'log_bin'")
+
+	if row.Err() != nil {
+		return false, nil
+	}
+
+	var option, value string
+
+	err := row.Scan(&option, &value)
+	if err != nil {
+		return false, err
+	}
+
+	return value == "ON", nil
+}
+
+func (bs *BinlogService) PurgeLogs() error {
+
+	endOfDay := time.Now().Format(time.DateOnly)
+
+	// user needs `BINLOG_ADMIN` privilege
+	// action: GRANT BINLOG_ADMIN ON *.* TO 'user'@'%'; FLUSH PRIVILEGES;
+	_, err := bs.Rdbms.Exec(fmt.Sprintf("PURGE BINARY LOGS BEFORE '%s 23:59:59'", endOfDay))
+
+	if err != nil {
+		return nil
+	}
+
+	return nil
+}
+
+func (bs *BinlogService) FlushLogs() error {
+
+	// user needs `RELOAD` privilege
+	// action: GRANT RELOAD ON *.* TO 'user'@'%';FLUSH PRIVILEGES;
+	_, err := bs.Rdbms.Exec("FLUSH BINARY LOGS")
+
+	if err != nil {
+		return nil
+	}
+
+	return nil
+}
+
+func (bs *BinlogService) ListLogs() ([]Binlog, error) {
+
+	// user needs `REPLICATION CLIENT` privilege
+	// action: GRANT REPLICATION CLIENT ON *.* TO 'user'@'%';FLUSH PRIVILEGES;
+	rows, err := bs.Rdbms.Query("SHOW BINARY LOGS")
+
+	if err != nil {
+		return nil, nil
+	}
+
+	var logs []Binlog
+
+	for rows.Next() {
+		log := Binlog{}
+
+		err = rows.Scan(&log.Name, &log.Size, &log.encrypted)
+		if err != nil {
+			return nil, err
+		}
+
+		logs = append(logs, log)
+	}
+
+	return logs, nil
+}
+
+func (bs *BinlogService) Close() error {
+
+	if bs.Rdbms != nil {
+
+		bs.Rdbms.Close()
+	}
+
+	if bs.DB != nil {
+		db, _ := bs.DB.DB()
+		db.Close()
+	}
+
+	return nil
+}
+
+func (bs *BinlogService) updateConfiguration() error {
+
+	file, err := os.OpenFile("/etc/mysql/mysql.conf.d/oversight-binlog.cnf", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	var databases []models.Database
+
+	err = bs.DB.Find(&databases).Error
+	if err != nil {
+		return err
+	}
+
+	var activeDatabases []models.Database
+	var inactiveDatabases []models.Database
+
+	for _, v := range databases {
+
+		if v.EnableLogging {
+			activeDatabases = append(activeDatabases, v)
+			continue
+		}
+
+		inactiveDatabases = append(inactiveDatabases, v)
+	}
+
+	var configuration string
+
+	if len(databases) == len(inactiveDatabases) {
+		configuration = fmt.Sprintf(`
+[mysqld]
+
+disable-log-bin
+`)
+	} else {
+
+		configuration = fmt.Sprintf(`
+[mysqld]
+
+log-bin=oversight-bin
+binlog_format=%s
+binlog_expire_logs_seconds=%d
+max_binlog_size=%dM
+`, "ROW", 60*60*24, 10)
+
+		for _, v := range inactiveDatabases {
+			configuration += fmt.Sprintf("\nbinlog-ignore-db=%s", v.Name)
+		}
+	}
+
+	_, err = file.WriteString(configuration)
+	if err != nil {
+		return err
+	}
+
+	// restart mysql
+	programPath, err := exec.LookPath("mysqld")
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command(
+		fmt.Sprintf("%s", programPath),
+		fmt.Sprintf("--validate-config"),
+	)
+
+	data, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Println(string(data))
+		return err
+	}
+
+	programPath, err = exec.LookPath("/etc/init.d/mysql")
+	if err != nil {
+		return err
+	}
+
+	cmd = exec.Command(
+		fmt.Sprintf("%s", programPath),
+		fmt.Sprintf("reload"),
+	)
+
+	data, err = cmd.CombinedOutput()
+	if err != nil {
+		log.Println(string(data))
+		return err
 	}
 
 	return nil
