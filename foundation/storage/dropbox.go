@@ -334,9 +334,12 @@ func (dbx *Dropbox) Save(receiver <-chan []byte, failureChan chan struct{}) (int
 	return uploadedSize, nil
 }
 
-func (dbx *Dropbox) Retrieve(fileName string) (location string, err error) {
-
-	// implement
+func (dbx *Dropbox) Retrieve(filesNames ...string) (locations []string, err error) {
 
 	return
+}
+
+func (dbx *Dropbox) DeleteRetrievals(filesLocations ...string) error {
+
+	return nil
 }

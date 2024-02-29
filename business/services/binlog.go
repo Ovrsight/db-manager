@@ -11,6 +11,7 @@ import (
 	"github.com/nizigama/ovrsight/foundation/rdbms"
 	"github.com/nizigama/ovrsight/foundation/storage"
 	"gorm.io/gorm"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -19,9 +20,10 @@ import (
 )
 
 type BinlogService struct {
-	Rdbms    *sql.DB
-	DB       *gorm.DB
-	Database string
+	Rdbms               *sql.DB
+	DB                  *gorm.DB
+	Database            string
+	DatabaseCredentials rdbms.Credentials
 }
 
 type Binlog struct {
@@ -47,6 +49,13 @@ func InitBinlogService(database string) (*BinlogService, error) {
 
 	service.Rdbms = db
 	service.DB = models.Init()
+
+	creds, err := dbms.GetCredentials()
+	if err != nil {
+		return nil, err
+	}
+
+	service.DatabaseCredentials = creds
 
 	// check binlog program existence
 	_, err = exec.LookPath("mysqlbinlog")
@@ -109,12 +118,16 @@ func (bs *BinlogService) Backup(storageEngine string) error {
 
 	// get the last binlog of the backup
 	var savedLogs []models.Binlog
-	tx = bs.DB.Find(&savedLogs, "backup_id = ?", bck.ID)
+	tx = bs.DB.Model(&models.Binlog{}).Find(&savedLogs, "backup_id = ?", bck.ID)
 	if tx.Error != nil {
 		if !errors.Is(tx.Error, gorm.ErrRecordNotFound) {
 			return tx.Error
 		}
 
+		return nil
+	}
+
+	if len(savedLogs) == 0 {
 		return nil
 	}
 
@@ -167,9 +180,71 @@ func (bs *BinlogService) Backup(storageEngine string) error {
 			continue
 		}
 	}
-
 	err = bs.ProcessBinLogs(storageEngine)
 	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (bs *BinlogService) ApplyLogChanges(database string, until time.Time, logsFiles ...string) error {
+
+	binlogProgram, err := exec.LookPath("mysqlbinlog")
+	if err != nil {
+		return err
+	}
+
+	mysqlProgram, err := exec.LookPath("mysql")
+	if err != nil {
+		return err
+	}
+
+	binlogCmd := exec.Command(
+		fmt.Sprintf("%s", binlogProgram),
+		fmt.Sprintf("--database"),
+		fmt.Sprintf(database),
+		fmt.Sprintf("--disable-log-bin"),
+		fmt.Sprintf("--stop-datetime=\"%s\"", until.Format(time.DateTime)),
+	)
+
+	binlogCmd.Args = append(binlogCmd.Args, logsFiles...)
+
+	mysqlCmd := exec.Command(
+		fmt.Sprintf("%s", mysqlProgram),
+		"-u",
+		bs.DatabaseCredentials.User,
+		fmt.Sprintf("-p%s", bs.DatabaseCredentials.Password),
+		database,
+	)
+
+	binlogPipe, err := binlogCmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+
+	//_ = mysqlCmd
+	mysqlCmd.Stdin = binlogPipe
+
+	err = mysqlCmd.Start()
+	if err != nil {
+		return err
+	}
+
+	err = binlogCmd.Start()
+	if err != nil {
+		return err
+	}
+
+	if err := binlogCmd.Wait(); err != nil {
+		data, _ := io.ReadAll(binlogPipe)
+		fmt.Println("here", data)
+		fmt.Println(binlogCmd.Args)
+		return err
+	}
+
+	if err := mysqlCmd.Wait(); err != nil {
+		fmt.Println("here 2")
 		return err
 	}
 

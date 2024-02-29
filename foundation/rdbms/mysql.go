@@ -18,6 +18,43 @@ type Mysql struct {
 	Conn     *sql.DB
 }
 
+func (m *Mysql) GetDsn() (string, error) {
+
+	host := os.Getenv("DB_HOST")
+	p := os.Getenv("DB_PORT")
+	user := os.Getenv("DB_USER")
+	password := os.Getenv("DB_PASSWORD")
+
+	port, err := strconv.Atoi(p)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/", user, password, host, port), nil
+}
+
+func (m *Mysql) GetCredentials() (Credentials, error) {
+
+	host := os.Getenv("DB_HOST")
+	p := os.Getenv("DB_PORT")
+	user := os.Getenv("DB_USER")
+	password := os.Getenv("DB_PASSWORD")
+
+	port, err := strconv.Atoi(p)
+	if err != nil {
+		return Credentials{}, err
+	}
+
+	creds := Credentials{
+		Host:     host,
+		Port:     port,
+		User:     user,
+		Password: password,
+	}
+
+	return creds, nil
+}
+
 func (m *Mysql) OpenConnection() (*sql.DB, error) {
 
 	var err error

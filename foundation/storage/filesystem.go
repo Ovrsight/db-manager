@@ -29,20 +29,32 @@ func (fs *FileSystem) getFilePath() string {
 	return strings.Join(steps, "/")
 }
 
-func (fs *FileSystem) Retrieve(fileName string) (location string, err error) {
+func (fs *FileSystem) DeleteRetrievals(filesLocations ...string) error {
+
+	// should be deleting the files used to recover a database, but since it used backup files and not downloaded ones they can't be deleted
+
+	return nil
+}
+
+func (fs *FileSystem) Retrieve(filesNames ...string) (locations []string, err error) {
 
 	path := fs.getFilePath()
 
-	location = fmt.Sprintf("%s/%s", path, fileName)
+	for _, fileName := range filesNames {
+		location := fmt.Sprintf("%s/%s", path, fileName)
 
-	var f *os.File
+		var f *os.File
 
-	f, err = os.Open(location)
-	if err != nil {
-		return
+		f, err = os.Open(location)
+		if err != nil {
+			locations = nil
+			return
+		}
+
+		f.Close()
+
+		locations = append(locations, location)
 	}
-
-	f.Close()
 
 	return
 }

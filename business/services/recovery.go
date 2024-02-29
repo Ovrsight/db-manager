@@ -112,7 +112,7 @@ func (rs *RecoveryService) Recover() error {
 	//- get the total size of all the binary log files of the backup and check if there's enough space on the server's disk to download them locally
 
 	var logs []models.Binlog
-	err = rs.DB.Where("backup_id = ?", backup.ID).Find(&logs).Error
+	err = rs.DB.Model(&models.Binlog{}).Where("backup_id = ?", backup.ID).Find(&logs).Error
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func (rs *RecoveryService) Recover() error {
 	}
 
 	//- download backup file
-	fileLocation, err := rs.StorageEngine.Retrieve(rs.Filename)
+	filesLocations, err := rs.StorageEngine.Retrieve(rs.Filename)
 	if err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func (rs *RecoveryService) Recover() error {
 		return err
 	}
 
-	err = rs.Rdbms.Restore(fileLocation, rs.Database)
+	err = rs.Rdbms.Restore(filesLocations[0], rs.Database)
 	if err != nil {
 		return err
 	}
@@ -153,30 +153,31 @@ func (rs *RecoveryService) Recover() error {
 		return err
 	}
 
-	// TODO: update retrieve interface method to accept variadic parameters, implement a DeleteRetrievals method in storage engines
+	err = rs.StorageEngine.DeleteRetrievals(filesLocations[0])
+	if err != nil {
+		return err
+	}
 
-	//- delete local copy of the backup file using the `DeleteRetrievals` method. For the filesystem engine it will do nothing since it didn't retrieve anything
-	//- download all binary log files of the backup
-	//- apply their changes up to the given point in time
+	var logsNames []string
 
-	//programPath, err := exec.LookPath("mysqlbinlog")
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//cmd := exec.Command(
-	//	fmt.Sprintf("%s", programPath),
-	//	fmt.Sprintf("--database"),
-	//	fmt.Sprintf(database),
-	//	fmt.Sprintf("--disable-log-bin"),
-	//	fmt.Sprintf("--start-datetime=%s", from.Format(time.DateTime)),
-	//	fmt.Sprintf("--stop-datetime=%s", until.Format(time.DateTime)),
-	//	fmt.Sprintf(binlogPath),
-	//)
+	for _, v := range logs {
+		logsNames = append(logsNames, v.Filename)
+	}
 
-	//- delete all local copies of the binary log files
+	filesLocations, err = rs.StorageEngine.Retrieve(logsNames...)
+	if err != nil {
+		return err
+	}
 
-	// TODO: implement new storage features in the dropbox engine
+	err = rs.binlogService.ApplyLogChanges(rs.Database, rs.PointInTime, filesLocations...)
+	if err != nil {
+		return err
+	}
+
+	err = rs.StorageEngine.DeleteRetrievals(filesLocations...)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

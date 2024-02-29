@@ -2,7 +2,8 @@ package storage
 
 type Engine interface {
 	Save(receiver <-chan []byte, failureChan chan struct{}) (int, error)
-	Retrieve(fileName string) (location string, err error)
+	Retrieve(filesNames ...string) (locations []string, err error)
+	DeleteRetrievals(filesLocations ...string) error
 }
 
 const (

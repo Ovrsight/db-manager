@@ -60,7 +60,10 @@ func (bp *BackupProcessor) ProcessBackup(method backup.Method, engine storage.En
 		return errors.New("failed to process the backup")
 	}
 
-	onSuccess(uploadedSize)
+	if onSuccess != nil {
+
+		onSuccess(uploadedSize)
+	}
 
 	return nil
 }
