@@ -68,6 +68,8 @@ func (mb *MysqlBinlog) Initialize() error {
 
 func (mb *MysqlBinlog) Generate(sender chan<- []byte, failureChan chan struct{}) error {
 
+	// TODO: This is supposed to read from the raw log file instead of parsing it
+
 	binlogPath := fmt.Sprintf("/var/lib/mysql/%s", mb.LogName)
 
 	ctx, cancelFunc := context.WithCancel(context.Background())

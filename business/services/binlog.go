@@ -68,8 +68,6 @@ func InitBinlogService(database string) (*BinlogService, error) {
 
 func (bs *BinlogService) Backup(storageEngine string) error {
 
-	// TODO: proceed with backing up logs
-
 	var database models.Database
 
 	tx := bs.DB.First(&database, "name = ?", bs.Database)
