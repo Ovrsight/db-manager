@@ -11,11 +11,11 @@ import (
 	"github.com/nizigama/ovrsight/foundation/rdbms"
 	"github.com/nizigama/ovrsight/foundation/storage"
 	"gorm.io/gorm"
-	"io"
 	"log"
 	"os"
 	"os/exec"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -68,6 +68,8 @@ func InitBinlogService(database string) (*BinlogService, error) {
 
 func (bs *BinlogService) Backup(storageEngine string) error {
 
+	// TODO: proceed with backing up logs
+
 	var database models.Database
 
 	tx := bs.DB.First(&database, "name = ?", bs.Database)
@@ -77,6 +79,7 @@ func (bs *BinlogService) Backup(storageEngine string) error {
 			return tx.Error
 		}
 
+		log.Println("No database found")
 		return nil
 	}
 
@@ -88,6 +91,8 @@ func (bs *BinlogService) Backup(storageEngine string) error {
 		if !errors.Is(tx.Error, gorm.ErrRecordNotFound) {
 			return tx.Error
 		}
+
+		log.Println("No backup found")
 
 		return nil
 	}
@@ -103,13 +108,13 @@ func (bs *BinlogService) Backup(storageEngine string) error {
 	var logs []Binlog
 
 	for rows.Next() {
-		log := Binlog{}
-		err = rows.Scan(&log.Name, &log.Size, &log.encrypted)
+		binLog := Binlog{}
+		err = rows.Scan(&binLog.Name, &binLog.Size, &binLog.encrypted)
 		if err != nil {
 			return err
 		}
 
-		logs = append(logs, log)
+		logs = append(logs, binLog)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -123,56 +128,37 @@ func (bs *BinlogService) Backup(storageEngine string) error {
 		if !errors.Is(tx.Error, gorm.ErrRecordNotFound) {
 			return tx.Error
 		}
-
-		return nil
 	}
 
 	if len(savedLogs) == 0 {
+		log.Println("No initial binary log found")
 		return nil
 	}
-
-	slices.SortStableFunc(savedLogs, func(a, b models.Binlog) int {
-		return cmp.Compare(a.Filename, b.Filename)
-	})
-
-	firstLog := savedLogs[0]
-	var needToBeBackedUp []models.Binlog
 
 	for _, v := range logs {
 
 		idx, found := slices.BinarySearchFunc(savedLogs, Binlog{Name: v.Name}, func(a models.Binlog, b Binlog) int {
-			return cmp.Compare(a.Filename, b.Name)
+			return cmp.Compare(a.LogName, b.Name)
 		})
 
 		// it means that the binary log has got new changes saved
-		if found && v.Size > savedLogs[idx].Position {
+		if found && v.Size > savedLogs[idx].Size {
 
 			savedLogs[idx].BackedUp = false
 			savedLogs[idx].Size = v.Size
-			needToBeBackedUp = append(needToBeBackedUp, savedLogs[idx])
 
-			bs.DB.Model(savedLogs[idx]).Updates(models.Binlog{BackedUp: false, Size: v.Size})
+			err = bs.DB.Model(&savedLogs[idx]).Update("backed_up", false).Update("size", v.Size).Error
 
 			continue
 		}
 
 		// it means this is a new binary log file
-		if !found && v.Name > firstLog.Filename {
-
-			needToBeBackedUp = append(needToBeBackedUp, models.Binlog{
-				BackupId: int64(bck.ID),
-				Filename: v.Name,
-				Size:     v.Size,
-				Position: 0,
-				BackedUp: false,
-			})
-
+		if !found {
 			binlog := models.Binlog{
 				BackupId: int64(bck.ID),
 				Filename: fmt.Sprintf("%s_%d", v.Name, time.Now().Unix()),
 				LogName:  v.Name,
 				Size:     v.Size,
-				Position: 0,
 			}
 
 			bs.DB.Create(&binlog)
@@ -180,6 +166,7 @@ func (bs *BinlogService) Backup(storageEngine string) error {
 			continue
 		}
 	}
+
 	err = bs.ProcessBinLogs(storageEngine)
 	if err != nil {
 		return err
@@ -237,14 +224,10 @@ func (bs *BinlogService) ApplyLogChanges(database string, until time.Time, logsF
 	}
 
 	if err := binlogCmd.Wait(); err != nil {
-		data, _ := io.ReadAll(binlogPipe)
-		fmt.Println("here", data)
-		fmt.Println(binlogCmd.Args)
 		return err
 	}
 
 	if err := mysqlCmd.Wait(); err != nil {
-		fmt.Println("here 2")
 		return err
 	}
 
@@ -270,29 +253,34 @@ func (bs *BinlogService) GetMasterLog() (string, int64, error) {
 func (bs *BinlogService) ProcessBinLogs(storageEngine string) error {
 
 	var unprocessedLogs []models.Binlog
-	tx := bs.DB.Find(&unprocessedLogs, "backed_up = ?", false)
+	tx := bs.DB.Model(&models.Binlog{}).Where("backed_up = ?", false).Find(&unprocessedLogs)
 	if tx.Error != nil {
 		if !errors.Is(tx.Error, gorm.ErrRecordNotFound) {
 			return tx.Error
 		}
-
-		return nil
 	}
 
-	for _, log := range unprocessedLogs {
+	if len(unprocessedLogs) > 0 {
+		err := bs.FlushLogs()
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, binLog := range unprocessedLogs {
 
 		method := &backup.MysqlBinlog{
 			Database:         bs.Database,
-			StartingPosition: log.Position,
-			Filename:         log.Filename,
-			LogName:          log.LogName,
+			StartingPosition: 0,
+			Filename:         binLog.Filename,
+			LogName:          binLog.LogName,
 		}
 
 		if err := method.Initialize(); err != nil {
 			return err
 		}
 
-		engine := storage.GetStorageEngine(storageEngine, bs.Database, log.Filename)
+		engine := storage.GetStorageEngine(storageEngine, bs.Database, binLog.Filename)
 
 		err := new(jobs.BackupProcessor).ProcessBackup(method, engine, nil)
 
@@ -300,7 +288,7 @@ func (bs *BinlogService) ProcessBinLogs(storageEngine string) error {
 			return err
 		}
 
-		bs.DB.Model(&log).Updates(models.Binlog{BackedUp: true})
+		bs.DB.Model(&binLog).Updates(models.Binlog{BackedUp: true})
 	}
 
 	return nil
@@ -368,7 +356,16 @@ func (bs *BinlogService) IsActive() (bool, error) {
 	return value == "ON", nil
 }
 
-func (bs *BinlogService) PurgeLogs() error {
+func (bs *BinlogService) PurgeLogs(logName string) error {
+
+	if strings.TrimSpace(logName) != "" {
+		_, err := bs.Rdbms.Exec(fmt.Sprintf("PURGE BINARY LOGS TO '%s'", logName))
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
 
 	endOfDay := time.Now().Format(time.DateOnly)
 
@@ -377,12 +374,13 @@ func (bs *BinlogService) PurgeLogs() error {
 	_, err := bs.Rdbms.Exec(fmt.Sprintf("PURGE BINARY LOGS BEFORE '%s 23:59:59'", endOfDay))
 
 	if err != nil {
-		return nil
+		return err
 	}
 
 	return nil
 }
 
+// FlushLogs resets the current logging state to create a new binary log
 func (bs *BinlogService) FlushLogs() error {
 
 	// user needs `RELOAD` privilege

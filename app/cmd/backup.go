@@ -72,6 +72,25 @@ $ oversight backup demo_db dropbox --binlog`,
 			storageEngine = args[1]
 		}
 
+		binlogService, err := services.InitBinlogService(databaseName)
+		if err != nil {
+			color.Red("Error occurred while preparing binlog manager => %s", err)
+			return err
+		}
+
+		if active, err := binlogService.IsActive(); !active {
+
+			if err != nil {
+				return err
+			}
+
+			err = binlogService.Enable(databaseName)
+			if err != nil {
+				color.Red("Error occurred while enabling binary logs => %s", err)
+				return err
+			}
+		}
+
 		if !onlyBinlog {
 			backupService, err := services.InitBackupService(databaseName, storageEngine)
 			if err != nil {
@@ -88,12 +107,6 @@ $ oversight backup demo_db dropbox --binlog`,
 			color.Green("%s => The '%s' database has been successfully backed up using the %s driver\n", time.Now().Format(time.DateTime), databaseName, storageEngine)
 
 			return nil
-		}
-
-		binlogService, err := services.InitBinlogService(databaseName)
-		if err != nil {
-			color.Red("Error occurred while preparing binlog manager => %s", err)
-			return err
 		}
 
 		err = binlogService.Backup(storageEngine)

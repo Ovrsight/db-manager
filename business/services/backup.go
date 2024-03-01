@@ -87,6 +87,11 @@ func (bckp *BackupService) Backup() error {
 
 		defer binlogService.Close()
 
+		err = binlogService.FlushLogs()
+		if err != nil {
+			return err
+		}
+
 		// get master binary and create bin log record
 		binlogName, position, err := binlogService.GetMasterLog()
 		if err != nil {
@@ -97,7 +102,6 @@ func (bckp *BackupService) Backup() error {
 		binlogModel.Filename = fmt.Sprintf("%s_%d", binlogName, time.Now().Unix())
 		binlogModel.LogName = binlogName
 		binlogModel.Size = position
-		binlogModel.Position = position
 
 		err = tx.Create(binlogModel).Error
 		if err != nil {
@@ -105,6 +109,11 @@ func (bckp *BackupService) Backup() error {
 		}
 
 		err = new(jobs.BackupProcessor).ProcessBackup(bckp.BackupMethod, bckp.StorageEngine, bckp.updateBackupSize(tx, backupModel.ID))
+		if err != nil {
+			return err
+		}
+
+		err = binlogService.PurgeLogs(binlogName)
 		if err != nil {
 			return err
 		}

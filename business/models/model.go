@@ -31,7 +31,6 @@ type Binlog struct {
 	Filename string
 	LogName  string
 	Size     int64
-	Position int64
 	BackedUp bool
 }
 
