@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -24,6 +25,24 @@ type uploadError struct {
 	Error        struct {
 		Tag string `json:".tag"`
 	} `json:"error"`
+}
+
+const (
+	downloadChunkSize int = 1 * 1024 * 1024
+)
+
+func (dbx *Dropbox) getFilePath() string {
+	dropboxPath := os.Getenv("DROPBOX_PATH")
+
+	dropboxPath = strings.ReplaceAll(dropboxPath, "//", "/")
+
+	dropboxPath = strings.TrimSuffix(dropboxPath, "/")
+
+	steps := strings.Split(dropboxPath, "/")
+
+	steps = append(steps, dbx.Database)
+
+	return strings.Join(steps, "/")
 }
 
 func (dbx *Dropbox) start() (string, error) {
@@ -147,14 +166,14 @@ func (dbx *Dropbox) finish(sessionID string) error {
 	}
 
 	token := os.Getenv("DROPBOX_ACCESS_TOKEN")
-	path := os.Getenv("DROPBOX_PATH")
+	path := dbx.getFilePath()
 
 	params := map[string]interface{}{
 		"commit": map[string]interface{}{
 			"autorename":      false,
 			"mode":            "add",
 			"mute":            false,
-			"path":            fmt.Sprintf("%s/%s/%s", path, dbx.Database, dbx.Filename),
+			"path":            fmt.Sprintf("%s/%s", path, dbx.Filename),
 			"strict_conflict": false,
 		},
 		"cursor": map[string]interface{}{
@@ -192,6 +211,144 @@ func (dbx *Dropbox) finish(sessionID string) error {
 	}
 
 	return nil
+}
+
+func (dbx *Dropbox) getFileMetadata(fileName string) (map[string]interface{}, error) {
+	token := os.Getenv("DROPBOX_ACCESS_TOKEN")
+	path := dbx.getFilePath()
+
+	payload := map[string]interface{}{
+		"include_deleted":                     false,
+		"include_has_explicit_shared_members": false,
+		"include_media_info":                  false,
+		"path":                                fmt.Sprintf("%s/%s", path, fileName),
+	}
+
+	payloadBx, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	buf := bytes.NewBuffer(payloadBx)
+
+	// get file details
+	req, err := http.NewRequest("POST", "https://api.dropboxapi.com/2/files/get_metadata", buf)
+
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	req.Header.Set("Content-Type", "application/json")
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode != 200 {
+
+		return nil, errors.New("failed reading file's metadata")
+	}
+
+	resData, _ := io.ReadAll(res.Body)
+	defer res.Body.Close()
+
+	response := map[string]interface{}{}
+
+	err = json.Unmarshal(resData, &response)
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+func (dbx *Dropbox) downloadFile(fileName string) (string, error) {
+
+	token := os.Getenv("DROPBOX_ACCESS_TOKEN")
+	path := dbx.getFilePath()
+
+	fileInfo, err := dbx.getFileMetadata(fileName)
+	if err != nil {
+		return "", err
+	}
+
+	totalSize := fileInfo["size"].(float64)
+
+	req, err := http.NewRequest("POST", "https://content.dropboxapi.com/2/files/download", nil)
+
+	if err != nil {
+		return "", err
+	}
+
+	params := map[string]string{
+		"path": fmt.Sprintf("%s/%s", path, fileName),
+	}
+
+	parameters, err := json.Marshal(params)
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	req.Header.Set("Content-Type", "application/octet-stream")
+	req.Header.Set("Dropbox-API-Arg", string(parameters))
+
+	readBytes := 0
+	chunkStart := 0
+	chunkEnd := downloadChunkSize
+
+	wd, _ := os.Getwd()
+
+	tmpPath := fmt.Sprintf("%s/tmp/%s", wd, dbx.Database)
+
+	err = os.MkdirAll(tmpPath, 0555)
+	if err != nil {
+		return "", err
+	}
+
+	tmpFilePath := fmt.Sprintf("%s/%s", tmpPath, fileName)
+
+	f, err := os.OpenFile(tmpFilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		return "", err
+	}
+
+	defer f.Close()
+
+	for readBytes < int(totalSize) {
+		req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", chunkStart, chunkEnd))
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return "", err
+		}
+
+		if res.StatusCode != http.StatusPartialContent {
+			return "", errors.New(fmt.Sprintf("failed fetching file with http status code: %d", res.StatusCode))
+		}
+
+		data, err := io.ReadAll(res.Body)
+		if err != nil {
+			return "", err
+		}
+
+		_, err = f.Write(data)
+		if err != nil {
+			return "", err
+		}
+
+		res.Body.Close()
+
+		length, _ := strconv.Atoi(res.Header.Get("Content-Length"))
+
+		readBytes += length
+
+		chunkStart = chunkEnd + 1
+		chunkEnd += downloadChunkSize
+	}
+
+	return tmpFilePath, nil
 }
 
 func (dbx *Dropbox) Save(receiver <-chan []byte, failureChan chan struct{}) (int, error) {
@@ -336,10 +493,32 @@ func (dbx *Dropbox) Save(receiver <-chan []byte, failureChan chan struct{}) (int
 
 func (dbx *Dropbox) Retrieve(filesNames ...string) (locations []string, err error) {
 
+	for _, fn := range filesNames {
+
+		var fl string
+
+		fl, err = dbx.downloadFile(fn)
+
+		if err != nil {
+			locations = nil
+			return
+		}
+
+		locations = append(locations, fl)
+	}
+
 	return
 }
 
 func (dbx *Dropbox) DeleteRetrievals(filesLocations ...string) error {
+
+	for _, fn := range filesLocations {
+
+		err := os.Remove(fn)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }

@@ -132,7 +132,7 @@ func (md *MysqlDump) Generate(sender chan<- []byte, failureChan chan struct{}) e
 
 		if savingBackupFailed {
 			ctx.Done()
-			break
+			return nil
 		}
 	}
 

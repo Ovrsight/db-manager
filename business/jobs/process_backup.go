@@ -47,6 +47,10 @@ func (bp *BackupProcessor) ProcessBackup(method backup.Method, engine storage.En
 		if err != nil {
 			log.Println("Storage failure:", err)
 			failureChan <- struct{}{}
+
+			if _, closed := <-dataChan; !closed {
+				<-dataChan
+			}
 			return
 		}
 

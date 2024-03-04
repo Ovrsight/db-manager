@@ -38,6 +38,9 @@ $ oversight recover demo_db 1708627278
 
 With formatted datetime
 $ oversight recover demo_db "2024-01-01 00:00:00"
+
+With specific storage engine
+$ oversight recover demo_db "2024-01-01 00:00:00" dropbox
 `,
 	Args: func(cmd *cobra.Command, args []string) error {
 
