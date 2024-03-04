@@ -190,7 +190,7 @@ func (bs *BinlogService) ApplyLogChanges(database string, until time.Time, logsF
 		fmt.Sprintf("--database"),
 		fmt.Sprintf(database),
 		fmt.Sprintf("--disable-log-bin"),
-		fmt.Sprintf("--stop-datetime=\"%s\"", until.Format(time.DateTime)),
+		fmt.Sprintf("--stop-datetime=%s", until.Format(time.DateTime)),
 	)
 
 	binlogCmd.Args = append(binlogCmd.Args, logsFiles...)
@@ -255,13 +255,6 @@ func (bs *BinlogService) ProcessBinLogs(storageEngine string) error {
 	if tx.Error != nil {
 		if !errors.Is(tx.Error, gorm.ErrRecordNotFound) {
 			return tx.Error
-		}
-	}
-
-	if len(unprocessedLogs) > 0 {
-		err := bs.FlushLogs()
-		if err != nil {
-			return err
 		}
 	}
 

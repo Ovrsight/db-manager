@@ -148,11 +148,6 @@ func (rs *RecoveryService) Recover() error {
 		return err
 	}
 
-	err = rs.binlogService.Enable(rs.Database)
-	if err != nil {
-		return err
-	}
-
 	err = rs.StorageEngine.DeleteRetrievals(filesLocations[0])
 	if err != nil {
 		return err
@@ -175,6 +170,11 @@ func (rs *RecoveryService) Recover() error {
 	}
 
 	err = rs.StorageEngine.DeleteRetrievals(filesLocations...)
+	if err != nil {
+		return err
+	}
+
+	err = rs.binlogService.Enable(rs.Database)
 	if err != nil {
 		return err
 	}

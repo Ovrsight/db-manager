@@ -1,12 +1,9 @@
 package backup
 
 import (
-	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"strconv"
@@ -68,34 +65,14 @@ func (mb *MysqlBinlog) Initialize() error {
 
 func (mb *MysqlBinlog) Generate(sender chan<- []byte, failureChan chan struct{}) error {
 
-	// TODO: This is supposed to read from the raw log file instead of parsing it
-
 	binlogPath := fmt.Sprintf("/var/lib/mysql/%s", mb.LogName)
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
-
-	cmd := exec.CommandContext(
-		ctx,
-		fmt.Sprintf("%s", mb.programPath),
-		fmt.Sprintf("--database"),
-		fmt.Sprintf(mb.Database),
-		fmt.Sprintf("--disable-log-bin"),
-		fmt.Sprintf("--start-position=%d", mb.StartingPosition),
-		fmt.Sprintf(binlogPath),
-	)
-
-	outPipe, err := cmd.StdoutPipe()
+	file, err := os.Open(binlogPath)
 	if err != nil {
 		return err
 	}
 
-	defer outPipe.Close()
-
-	err = cmd.Start()
-	if err != nil {
-		return err
-	}
+	defer file.Close()
 
 	savingBackupFailed := false
 	completed := make(chan struct{}, 1)
@@ -118,7 +95,7 @@ func (mb *MysqlBinlog) Generate(sender chan<- []byte, failureChan chan struct{})
 
 		content := make([]byte, bufferSize) // reading 5MB
 
-		read, err := outPipe.Read(content)
+		read, err := file.Read(content)
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -129,18 +106,6 @@ func (mb *MysqlBinlog) Generate(sender chan<- []byte, failureChan chan struct{})
 		if !savingBackupFailed {
 			sender <- content[:read]
 		}
-
-		if savingBackupFailed {
-			ctx.Done()
-			break
-		}
-	}
-
-	err = cmd.Wait()
-	if err != nil {
-		execErr := &exec.ExitError{}
-		errors.As(err, &execErr)
-		log.Fatalln(string(execErr.Stderr))
 	}
 
 	return nil
