@@ -8,7 +8,7 @@
     - [x] Check the todos
     - [x] Clean current implementation to use (services, models & jobs)
   - [x] Add proper error handling when either method or storage fail
-  - [ ] Recovery
+  - [x] Recovery
 - [ ] Users & privileges management
 - [ ] Configuration
 - [ ] Monitoring using [prometheus](https://prometheus.io/)
