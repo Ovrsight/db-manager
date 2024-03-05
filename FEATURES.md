@@ -12,7 +12,7 @@
 - [ ] Users & privileges management
   - [x] Create user
   - [x] List users
-  - [ ] Validations for create user
+  - [x] Validations for create user
   - [ ] Update user
   - [ ] Delete user
   - [ ] View user details(everything possible including privileges)

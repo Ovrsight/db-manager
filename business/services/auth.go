@@ -3,6 +3,7 @@ package services
 import (
 	"database/sql"
 	"fmt"
+	"github.com/go-playground/validator/v10"
 	"github.com/nizigama/ovrsight/foundation/rdbms"
 	"os"
 )
@@ -18,6 +19,13 @@ type UserInfo struct {
 	UserMaxConnections   int
 	AuthenticationMethod string
 	AccountLocked        string
+}
+
+type NewUser struct {
+	Username   string   `validate:"required"`
+	AuthMethod string   `validate:"required"`
+	Password   string   `validate:"required"`
+	Hosts      []string `validate:"required,dive,required,ipv4"`
 }
 
 func InitUserService() (*UserService, error) {
@@ -38,11 +46,18 @@ func InitUserService() (*UserService, error) {
 	return &service, nil
 }
 
-func (us *UserService) CreateUser(username, authMethod, password string, hosts ...string) error {
+func (us *UserService) CreateUser(user NewUser) error {
 
-	for _, h := range hosts {
+	validate := validator.New()
 
-		query := fmt.Sprintf("CREATE USER '%s'@'%s' IDENTIFIED WITH %s BY '%s'", username, h, authMethod, password)
+	err := validate.Struct(user)
+	if err != nil {
+		return err
+	}
+
+	for _, h := range user.Hosts {
+
+		query := fmt.Sprintf("CREATE USER '%s'@'%s' IDENTIFIED WITH %s BY '%s'", user.Username, h, user.AuthMethod, user.Password)
 		_, err := us.DB.Exec(query)
 		if err != nil {
 			return err

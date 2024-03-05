@@ -56,7 +56,14 @@ $ oversight users:create`,
 
 		defer userService.Close()
 
-		err = userService.CreateUser(username, selectedAuthMethod, password, selectedHost...)
+		user := services.NewUser{
+			Username:   username,
+			AuthMethod: selectedAuthMethod,
+			Password:   password,
+			Hosts:      selectedHost,
+		}
+
+		err = userService.CreateUser(user)
 		if err != nil {
 			return err
 		}
