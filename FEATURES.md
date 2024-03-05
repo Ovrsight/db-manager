@@ -10,6 +10,13 @@
   - [x] Add proper error handling when either method or storage fail
   - [x] Recovery
 - [ ] Users & privileges management
+  - [x] Create user
+  - [x] List users
+  - [ ] Validations for create user
+  - [ ] Update user
+  - [ ] Delete user
+  - [ ] View user details(everything possible including privileges)
+  - [ ] Add/Remove privileges on a specific user
 - [ ] Configuration
 - [ ] Monitoring using [prometheus](https://prometheus.io/)
 - [ ] Add support for running as a service

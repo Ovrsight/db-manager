@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/nizigama/ovrsight/app/cmd/users"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -21,5 +22,5 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.AddCommand(backupCmd, recoverCmd)
+	rootCmd.AddCommand(backupCmd, recoverCmd, users.CreateCmd, users.ListCmd)
 }
