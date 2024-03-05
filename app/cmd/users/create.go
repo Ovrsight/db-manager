@@ -32,22 +32,26 @@ $ oversight users:create`,
 
 		selectedHostType, _ := pterm.DefaultInteractiveSelect.WithOptions(hostTypeOptions).WithDefaultOption(hostTypeOptions[0]).Show("Choose where the user can connect from")
 
-		var selectedHost []string
+		var selectedHosts []string
+		var localhost bool
+		var everywhere bool
 
 		switch selectedHostType {
 		case hostTypeOptions[0]:
-			selectedHost = append(selectedHost, hostTypeOptions[0])
+			localhost = true
 		case hostTypeOptions[1]:
-			selectedHost = append(selectedHost, "%")
+			everywhere = true
 		case hostTypeOptions[2]:
 			hosts, _ := pterm.DefaultInteractiveTextInput.Show("IPs separated with commas")
 
-			selectedHost = strings.Split(hosts, ",")
+			selectedHosts = strings.Split(hosts, ",")
 		}
 
 		selectedAuthMethod, _ := pterm.DefaultInteractiveSelect.WithOptions(authenticationOptions).WithDefaultOption(authenticationOptions[2]).Show("Choose the user's authentication method")
 
 		password, _ := pterm.DefaultInteractiveTextInput.WithMask("*").Show("Password")
+
+		locked, _ := pterm.DefaultInteractiveConfirm.WithDefaultValue(false).Show("Lock account by default")
 
 		userService, err := services.InitUserService()
 		if err != nil {
@@ -60,7 +64,10 @@ $ oversight users:create`,
 			Username:   username,
 			AuthMethod: selectedAuthMethod,
 			Password:   password,
-			Hosts:      selectedHost,
+			Hosts:      selectedHosts,
+			Locked:     locked,
+			Localhost:  localhost,
+			Everywhere: everywhere,
 		}
 
 		err = userService.CreateUser(user)

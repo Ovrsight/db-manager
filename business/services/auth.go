@@ -22,10 +22,13 @@ type UserInfo struct {
 }
 
 type NewUser struct {
-	Username   string   `validate:"required"`
-	AuthMethod string   `validate:"required"`
-	Password   string   `validate:"required"`
-	Hosts      []string `validate:"required,dive,required,ipv4"`
+	Username   string `validate:"required"`
+	AuthMethod string `validate:"required"`
+	Password   string
+	Hosts      []string `validate:"dive,required,ipv4"`
+	Localhost  bool
+	Everywhere bool
+	Locked     bool
 }
 
 func InitUserService() (*UserService, error) {
@@ -55,12 +58,42 @@ func (us *UserService) CreateUser(user NewUser) error {
 		return err
 	}
 
-	for _, h := range user.Hosts {
+	switch {
+	case user.Localhost:
+		query := fmt.Sprintf("CREATE USER '%s'@'localhost' IDENTIFIED WITH %s BY '%s'", user.Username, user.AuthMethod, user.Password)
 
-		query := fmt.Sprintf("CREATE USER '%s'@'%s' IDENTIFIED WITH %s BY '%s'", user.Username, h, user.AuthMethod, user.Password)
+		if user.Locked {
+			query = fmt.Sprintf("%s ACCOUNT LOCK", query)
+		}
+
 		_, err := us.DB.Exec(query)
 		if err != nil {
 			return err
+		}
+	case user.Everywhere:
+		query := fmt.Sprintf("CREATE USER '%s'@'%%' IDENTIFIED WITH %s BY '%s'", user.Username, user.AuthMethod, user.Password)
+
+		if user.Locked {
+			query = fmt.Sprintf("%s ACCOUNT LOCK", query)
+		}
+
+		_, err := us.DB.Exec(query)
+		if err != nil {
+			return err
+		}
+	default:
+		for _, h := range user.Hosts {
+
+			query := fmt.Sprintf("CREATE USER '%s'@'%s' IDENTIFIED WITH %s BY '%s'", user.Username, h, user.AuthMethod, user.Password)
+
+			if user.Locked {
+				query = fmt.Sprintf("%s ACCOUNT LOCK", query)
+			}
+
+			_, err := us.DB.Exec(query)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
