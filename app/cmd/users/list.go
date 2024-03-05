@@ -37,7 +37,7 @@ $ oversight users:list`,
 		}
 
 		tableData := pterm.TableData{
-			{"Client origin", "Username", "System allowed connections", "User allowed connections", "Auth method", "Locked"},
+			{"Client origin", "Username", "Using password", "System allowed connections", "User allowed connections", "Auth method", "Locked"},
 		}
 
 		for _, user := range users {
@@ -51,7 +51,7 @@ $ oversight users:list`,
 				locked = "Yes"
 			}
 
-			tableData = append(tableData, []string{user.Host, user.Username, systemMaxConnections, userMaxConnections, user.AuthenticationMethod, locked})
+			tableData = append(tableData, []string{user.Host, user.Username, user.UsingPassword, systemMaxConnections, userMaxConnections, user.AuthenticationMethod, locked})
 		}
 
 		err = pterm.DefaultTable.WithHasHeader().WithBoxed().WithData(tableData).Render()

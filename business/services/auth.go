@@ -15,6 +15,7 @@ type UserService struct {
 type UserInfo struct {
 	Host                 string
 	Username             string
+	UsingPassword        string
 	SystemMaxConnections int
 	UserMaxConnections   int
 	AuthenticationMethod string
@@ -102,7 +103,7 @@ func (us *UserService) CreateUser(user NewUser) error {
 
 func (us *UserService) ListUsers() ([]UserInfo, error) {
 
-	rows, err := us.DB.Query("SELECT Host,User,max_connections,max_user_connections,plugin as authenticationMethod,account_locked FROM mysql.user")
+	rows, err := us.DB.Query("SELECT Host,User,authentication_string,max_connections,max_user_connections,plugin as authenticationMethod,account_locked FROM mysql.user")
 	if err != nil {
 		return nil, err
 	}
@@ -114,10 +115,17 @@ func (us *UserService) ListUsers() ([]UserInfo, error) {
 	for rows.Next() {
 
 		var user UserInfo
+		var usingPassword string
 
-		err = rows.Scan(&user.Host, &user.Username, &user.SystemMaxConnections, &user.UserMaxConnections, &user.AuthenticationMethod, &user.AccountLocked)
+		err = rows.Scan(&user.Host, &user.Username, &usingPassword, &user.SystemMaxConnections, &user.UserMaxConnections, &user.AuthenticationMethod, &user.AccountLocked)
 		if err != nil {
 			return nil, err
+		}
+
+		if usingPassword == "" {
+			user.UsingPassword = "No"
+		} else {
+			user.UsingPassword = "Yes"
 		}
 
 		users = append(users, user)
