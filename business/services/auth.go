@@ -32,6 +32,15 @@ type NewUser struct {
 	Locked     bool
 }
 
+type UsernameHostUpdate struct {
+	Username        string
+	UpdatedUsername string `validate:"required"`
+	Host            string
+	UpdatedHost     string `validate:"omitempty,ipv4"`
+	Localhost       bool
+	Everywhere      bool
+}
+
 func InitUserService() (*UserService, error) {
 
 	selectedRdbms := os.Getenv("RDBMS")
@@ -136,6 +145,112 @@ func (us *UserService) ListUsers() ([]UserInfo, error) {
 	}
 
 	return users, nil
+}
+
+func (us *UserService) UpdateUsernameHost(updates UsernameHostUpdate) error {
+
+	validate := validator.New()
+
+	err := validate.Struct(updates)
+	if err != nil {
+		return err
+	}
+
+	switch {
+	case updates.Localhost:
+
+		if updates.Username == updates.UpdatedUsername && updates.Host == "localhost" {
+			return nil
+		}
+
+		query := fmt.Sprintf("RENAME USER '%s'@'%s' TO '%s'@'locahost'", updates.Username, updates.Host, updates.UpdatedUsername)
+		_, err := us.DB.Exec(query)
+		if err != nil {
+			return err
+		}
+	case updates.Everywhere:
+
+		if updates.Username == updates.UpdatedUsername && updates.Host == "%" {
+			return nil
+		}
+
+		query := fmt.Sprintf("RENAME USER '%s'@'%s' TO '%s'@'%%'", updates.Username, updates.Host, updates.UpdatedUsername)
+		_, err := us.DB.Exec(query)
+		if err != nil {
+			return err
+		}
+	default:
+
+		if updates.Username == updates.UpdatedUsername && updates.Host == updates.UpdatedHost {
+			return nil
+		}
+
+		query := fmt.Sprintf("RENAME USER '%s'@'%s' TO '%s'@'%s'", updates.Username, updates.Host, updates.UpdatedUsername, updates.UpdatedHost)
+		_, err := us.DB.Exec(query)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (us *UserService) UpdateUserPassword(username, host, password string) error {
+
+	query := fmt.Sprintf("ALTER USER '%s'@'%s' IDENTIFIED BY '%s'", username, host, password)
+	_, err := us.DB.Exec(query)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (us *UserService) UpdateUserAuthenticationPlugin(username, host, authMethod, password string) error {
+
+	tx, err := us.DB.Begin()
+	if err != nil {
+		return err
+	}
+
+	query := fmt.Sprintf("ALTER USER '%s'@'%s' IDENTIFIED WITH '%s'", username, host, authMethod)
+	_, err = tx.Exec(query)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	query = fmt.Sprintf("ALTER USER '%s'@'%s' IDENTIFIED BY '%s'", username, host, password)
+	_, err = tx.Exec(query)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (us *UserService) UpdateUserLockStatus(username, host string, lock bool) error {
+
+	query := fmt.Sprintf("ALTER USER '%s'@'%s'", username, host)
+
+	if lock {
+		query = fmt.Sprintf("%s ACCOUNT LOCK", query)
+	} else {
+		query = fmt.Sprintf("%s ACCOUNT UNLOCK", query)
+	}
+
+	_, err := us.DB.Exec(query)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (us *UserService) Close() error {
