@@ -64,7 +64,7 @@ $ oversight users:update`,
 
 		options := []string{"Username or/and Host", "Password", "Authentication method", "Lock status"}
 
-		useId, _ := pterm.DefaultInteractiveTextInput.Show("Enter user id")
+		useId, _ := pterm.DefaultInteractiveTextInput.Show("Choose a user id")
 
 		id, err := strconv.Atoi(useId)
 		if err != nil {

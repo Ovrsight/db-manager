@@ -253,6 +253,17 @@ func (us *UserService) UpdateUserLockStatus(username, host string, lock bool) er
 	return nil
 }
 
+func (us *UserService) DeleteUser(username, host string) error {
+
+	query := fmt.Sprintf("DROP USER '%s'@'%s'", username, host)
+	_, err := us.DB.Exec(query)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (us *UserService) Close() error {
 
 	if us.DB != nil {

@@ -13,8 +13,8 @@
   - [x] Create user
   - [x] List users
   - [x] Validations for create user
-  - [ ] Update user
-  - [ ] Delete user
+  - [x] Update user
+  - [x] Delete user
   - [ ] View user details(everything possible including privileges)
   - [ ] Add/Remove privileges on a specific user
 - [ ] Configuration

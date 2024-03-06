@@ -1,7 +1,11 @@
 package users
 
 import (
-	"fmt"
+	"errors"
+	"github.com/fatih/color"
+	"github.com/nizigama/ovrsight/business/services"
+	"github.com/pterm/pterm"
+	"strconv"
 
 	"github.com/spf13/cobra"
 )
@@ -9,15 +13,74 @@ import (
 // DeleteCmd represents the users:delete command
 var DeleteCmd = &cobra.Command{
 	Use:   "users:delete",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "Delete a mysql user",
+	Long: `Delete a mysql user. For example:
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("users:delete called")
+Eg:
+
+$ oversight users:delete`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+
+		pterm.DefaultHeader.
+			WithTextStyle(pterm.NewStyle(pterm.FgLightWhite)).
+			WithBackgroundStyle(pterm.NewStyle(pterm.BgLightBlue)).
+			WithFullWidth(true).
+			Println("Delete a MySQL user")
+
+		userService, err := services.InitUserService()
+		if err != nil {
+			return err
+		}
+
+		defer userService.Close()
+
+		users, err := userService.ListUsers()
+		if err != nil {
+			return err
+		}
+
+		tableData := pterm.TableData{
+			{"Id", "Client origin", "Username"},
+		}
+
+		for i, user := range users {
+
+			i = i + 1
+
+			tableData = append(tableData, []string{strconv.Itoa(i), user.Host, user.Username})
+		}
+
+		err = pterm.DefaultTable.WithHasHeader().WithBoxed().WithData(tableData).Render()
+		if err != nil {
+			return err
+		}
+
+		useId, _ := pterm.DefaultInteractiveTextInput.Show("Choose a user id")
+
+		id, err := strconv.Atoi(useId)
+		if err != nil {
+			return err
+		}
+
+		if id < 1 || id > len(tableData)-1 {
+			return errors.New("invalid user id")
+		}
+
+		confirm, _ := pterm.DefaultInteractiveConfirm.Show("Are you sure you want to delete the user")
+
+		if !confirm {
+			color.Yellow("Deletion cancelled")
+			return nil
+		}
+
+		err = userService.DeleteUser(tableData[id][2], tableData[id][1])
+		if err != nil {
+			return err
+		}
+
+		color.Green("User successfully cancelled")
+
+		return nil
 	},
 }
 
