@@ -28,7 +28,7 @@ $ oversight users:update`,
 			WithFullWidth(true).
 			Println("Update a MySQL user")
 
-		userService, err := services.InitUserService()
+		userService, err := services.InitAuthenticationService()
 		if err != nil {
 			return err
 		}

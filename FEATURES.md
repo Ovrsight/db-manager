@@ -15,7 +15,7 @@
   - [x] Validations for create user
   - [x] Update user
   - [x] Delete user
-  - [ ] View user details(everything possible including privileges)
+  - [x] View user details(everything possible including privileges)
   - [ ] Add/Remove privileges on a specific user
 - [ ] Configuration
 - [ ] Monitoring using [prometheus](https://prometheus.io/)

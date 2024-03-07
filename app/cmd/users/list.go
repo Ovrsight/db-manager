@@ -24,7 +24,7 @@ $ oversight users:list`,
 			WithFullWidth(true).
 			Println("MySQL users list")
 
-		userService, err := services.InitUserService()
+		userService, err := services.InitAuthenticationService()
 		if err != nil {
 			return err
 		}

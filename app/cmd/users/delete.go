@@ -27,7 +27,7 @@ $ oversight users:delete`,
 			WithFullWidth(true).
 			Println("Delete a MySQL user")
 
-		userService, err := services.InitUserService()
+		userService, err := services.InitAuthenticationService()
 		if err != nil {
 			return err
 		}

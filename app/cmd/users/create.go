@@ -53,7 +53,7 @@ $ oversight users:create`,
 
 		locked, _ := pterm.DefaultInteractiveConfirm.WithDefaultValue(false).Show("Lock account by default")
 
-		userService, err := services.InitUserService()
+		userService, err := services.InitAuthenticationService()
 		if err != nil {
 			return err
 		}

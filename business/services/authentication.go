@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-type UserService struct {
+type AuthenticationService struct {
 	DB *sql.DB
 }
 
@@ -41,7 +41,7 @@ type UsernameHostUpdate struct {
 	Everywhere      bool
 }
 
-func InitUserService() (*UserService, error) {
+func InitAuthenticationService() (*AuthenticationService, error) {
 
 	selectedRdbms := os.Getenv("RDBMS")
 
@@ -52,14 +52,14 @@ func InitUserService() (*UserService, error) {
 		return nil, err
 	}
 
-	service := UserService{
+	service := AuthenticationService{
 		DB: db,
 	}
 
 	return &service, nil
 }
 
-func (us *UserService) CreateUser(user NewUser) error {
+func (us *AuthenticationService) CreateUser(user NewUser) error {
 
 	validate := validator.New()
 
@@ -110,7 +110,7 @@ func (us *UserService) CreateUser(user NewUser) error {
 	return nil
 }
 
-func (us *UserService) ListUsers() ([]UserInfo, error) {
+func (us *AuthenticationService) ListUsers() ([]UserInfo, error) {
 
 	rows, err := us.DB.Query("SELECT Host,User,authentication_string,max_connections,max_user_connections,plugin as authenticationMethod,account_locked FROM mysql.user")
 	if err != nil {
@@ -147,7 +147,7 @@ func (us *UserService) ListUsers() ([]UserInfo, error) {
 	return users, nil
 }
 
-func (us *UserService) UpdateUsernameHost(updates UsernameHostUpdate) error {
+func (us *AuthenticationService) UpdateUsernameHost(updates UsernameHostUpdate) error {
 
 	validate := validator.New()
 
@@ -195,7 +195,7 @@ func (us *UserService) UpdateUsernameHost(updates UsernameHostUpdate) error {
 	return nil
 }
 
-func (us *UserService) UpdateUserPassword(username, host, password string) error {
+func (us *AuthenticationService) UpdateUserPassword(username, host, password string) error {
 
 	query := fmt.Sprintf("ALTER USER '%s'@'%s' IDENTIFIED BY '%s'", username, host, password)
 	_, err := us.DB.Exec(query)
@@ -206,7 +206,7 @@ func (us *UserService) UpdateUserPassword(username, host, password string) error
 	return nil
 }
 
-func (us *UserService) UpdateUserAuthenticationPlugin(username, host, authMethod, password string) error {
+func (us *AuthenticationService) UpdateUserAuthenticationPlugin(username, host, authMethod, password string) error {
 
 	tx, err := us.DB.Begin()
 	if err != nil {
@@ -235,7 +235,7 @@ func (us *UserService) UpdateUserAuthenticationPlugin(username, host, authMethod
 	return nil
 }
 
-func (us *UserService) UpdateUserLockStatus(username, host string, lock bool) error {
+func (us *AuthenticationService) UpdateUserLockStatus(username, host string, lock bool) error {
 
 	query := fmt.Sprintf("ALTER USER '%s'@'%s'", username, host)
 
@@ -253,7 +253,7 @@ func (us *UserService) UpdateUserLockStatus(username, host string, lock bool) er
 	return nil
 }
 
-func (us *UserService) DeleteUser(username, host string) error {
+func (us *AuthenticationService) DeleteUser(username, host string) error {
 
 	query := fmt.Sprintf("DROP USER '%s'@'%s'", username, host)
 	_, err := us.DB.Exec(query)
@@ -264,7 +264,7 @@ func (us *UserService) DeleteUser(username, host string) error {
 	return nil
 }
 
-func (us *UserService) Close() error {
+func (us *AuthenticationService) Close() error {
 
 	if us.DB != nil {
 		return us.DB.Close()
