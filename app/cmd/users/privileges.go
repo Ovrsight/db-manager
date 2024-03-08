@@ -6,11 +6,15 @@ import (
 	"github.com/nizigama/ovrsight/business/services"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
+	"golang.org/x/exp/maps"
+	"slices"
 	"strconv"
 )
 
-// ViewPrivilegesCmd represents the users:view command
-var ViewPrivilegesCmd = &cobra.Command{
+var update bool
+
+// PrivilegesCmd represents the users:view command
+var PrivilegesCmd = &cobra.Command{
 	Use:   "users:privileges",
 	Short: "Get a user's privileges details",
 	Long: `Get a user's privileges details. For example:
@@ -24,7 +28,7 @@ $ oversight users:privileges`,
 			WithTextStyle(pterm.NewStyle(pterm.FgLightWhite)).
 			WithBackgroundStyle(pterm.NewStyle(pterm.BgLightBlue)).
 			WithFullWidth(true).
-			Println("View a user's privileges")
+			Println("Manage a user's privileges")
 
 		userService, err := services.InitAuthenticationService()
 		if err != nil {
@@ -78,119 +82,39 @@ $ oversight users:privileges`,
 
 		defer authService.Close()
 
-		switch selectedOption {
-		case options[0]:
+		switch {
+		case options[0] == selectedOption && !update:
 
-			privileges, err := authService.GetGlobalPrivileges(users[id].Username, users[id].Host)
+			err = showGlobalPrivileges(authService, users, id)
 			if err != nil {
 				return err
 			}
+		case options[0] == selectedOption && update:
 
-			tableData := pterm.TableData{
-				{"Name", "Granted"},
-			}
-
-			for _, priv := range privileges {
-
-				granted := "Yes"
-
-				if priv.Granted == "N" {
-					granted = "No"
-				}
-
-				tableData = append(tableData, []string{priv.Name, granted})
-			}
-
-			color.Green("\nGlobal privileges\n")
-			err = pterm.DefaultTable.WithHasHeader().WithBoxed().WithData(tableData).Render()
+			err = updateGlobalPrivileges(authService, users, id)
 			if err != nil {
 				return err
 			}
-		case options[1]:
+		case options[1] == selectedOption && !update:
 
-			databases, err := authService.GetAllDatabases()
+			err = showDatabasePrivileges(authService, users, id)
 			if err != nil {
 				return err
 			}
+		case options[1] == selectedOption && update:
 
-			selectedDatabase, _ := pterm.DefaultInteractiveSelect.WithOptions(databases).Show("Choose a database")
-
-			privileges, err := authService.GetDatabasePrivileges(users[id].Username, users[id].Host, selectedDatabase)
+			err = updateDatabasePrivileges(authService, users, id)
 			if err != nil {
 				return err
 			}
+		case options[2] == selectedOption && !update:
 
-			tableData := pterm.TableData{
-				{"Name", "Granted"},
-			}
-
-			for _, priv := range privileges {
-
-				granted := "Yes"
-
-				if priv.Granted == "N" {
-					granted = "No"
-				}
-
-				tableData = append(tableData, []string{priv.Name, granted})
-			}
-
-			color.Green("\nDatabase privileges: %s\n", selectedDatabase)
-			err = pterm.DefaultTable.WithHasHeader().WithBoxed().WithData(tableData).Render()
+			err = showTableColumnPrivileges(authService, users, id)
 			if err != nil {
 				return err
 			}
-		case options[2]:
-
-			databases, err := authService.GetAllDatabases()
-			if err != nil {
-				return err
-			}
-
-			selectedDatabase, _ := pterm.DefaultInteractiveSelect.WithOptions(databases).Show("Choose a database")
-
-			tables, err := authService.GetAllDatabaseTables(selectedDatabase)
-			if err != nil {
-				return err
-			}
-
-			selectedTable, _ := pterm.DefaultInteractiveSelect.WithOptions(tables).WithMaxHeight(10).Show("Choose a table")
-
-			tablePrivileges, columnPrivileges, err := authService.GetTablePrivileges(users[id].Username, users[id].Host, selectedDatabase, selectedTable)
-			if err != nil {
-				return err
-			}
-
-			tableData := pterm.TableData{
-				{"Name", "Granted"},
-			}
-
-			for _, priv := range tablePrivileges {
-
-				tableData = append(tableData, []string{priv.Name, priv.Granted})
-			}
-
-			color.Green("\nTable privileges: %s\n", selectedTable)
-			err = pterm.DefaultTable.WithHasHeader().WithBoxed().WithData(tableData).Render()
-			if err != nil {
-				return err
-			}
-
-			tableData = pterm.TableData{
-				{"Name", "Granted"},
-			}
-
-			for _, priv := range columnPrivileges {
-
-				tableData = append(tableData, []string{priv.Name, priv.Granted})
-			}
-
-			color.Green("\nColumn privileges: %s\n", selectedTable)
-			err = pterm.DefaultTable.WithHasHeader().WithBoxed().WithData(tableData).Render()
-			if err != nil {
-				return err
-			}
-
+		case options[2] == selectedOption && update:
+			color.Yellow("Not yet implemented")
 		}
 
 		return nil
@@ -198,13 +122,224 @@ $ oversight users:privileges`,
 }
 
 func init() {
-	// Here you will define your flags and configuration settings.
+	PrivilegesCmd.Flags().BoolVarP(&update, "update", "u", false, "Update a user's privileges")
+}
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// users:viewCmd.PersistentFlags().String("foo", "", "A help for foo")
+func showGlobalPrivileges(authService *services.AuthorizationService, users []services.UserInfo, id int) error {
+	privileges, err := authService.GetGlobalPrivileges(users[id].Username, users[id].Host)
+	if err != nil {
+		return err
+	}
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// users:viewCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	tableData := pterm.TableData{
+		{"Name", "Granted"},
+	}
+
+	for _, priv := range privileges {
+
+		granted := "Yes"
+
+		if priv.Granted == "N" {
+			granted = "No"
+		}
+
+		tableData = append(tableData, []string{priv.Name, granted})
+	}
+
+	color.Green("\nGlobal privileges: %s\n", users[id].Username)
+	err = pterm.DefaultTable.WithHasHeader().WithBoxed().WithData(tableData).Render()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func updateGlobalPrivileges(authService *services.AuthorizationService, users []services.UserInfo, id int) error {
+
+	var options []string
+	var defaults []string
+
+	for _, v := range services.GlobalPrivilegesSet {
+
+		value := maps.Values(v)[0]
+
+		options = append(options, value)
+	}
+
+	privs, err := authService.GetGlobalPrivileges(users[id].Username, users[id].Host)
+	if err != nil {
+		return err
+	}
+
+	for _, priv := range privs {
+
+		if priv.Granted == "N" {
+			continue
+		}
+
+		idx := slices.IndexFunc(services.GlobalPrivilegesSet, func(m map[string]string) bool {
+
+			key := maps.Keys(m)[0]
+
+			return key == priv.Name
+		})
+
+		value := maps.Values(services.GlobalPrivilegesSet[idx])[0]
+
+		defaults = append(defaults, value)
+	}
+
+	selectedPrivileges, _ := pterm.DefaultInteractiveMultiselect.WithOptions(options).WithMaxHeight(15).WithDefaultOptions(defaults).Show()
+
+	err = authService.UpdateGlobalPrivileges(users[id].Username, users[id].Host, selectedPrivileges)
+	if err != nil {
+		return err
+	}
+
+	color.Green("\nGlobal privileges successfully updated for '%s'\n", users[id].Username)
+	return nil
+}
+
+func showDatabasePrivileges(authService *services.AuthorizationService, users []services.UserInfo, id int) error {
+	databases, err := authService.GetAllDatabases()
+	if err != nil {
+		return err
+	}
+
+	selectedDatabase, _ := pterm.DefaultInteractiveSelect.WithOptions(databases).Show("Choose a database")
+
+	privileges, err := authService.GetDatabasePrivileges(users[id].Username, users[id].Host, selectedDatabase)
+	if err != nil {
+		return err
+	}
+
+	tableData := pterm.TableData{
+		{"Name", "Granted"},
+	}
+
+	for _, priv := range privileges {
+
+		granted := "Yes"
+
+		if priv.Granted == "N" {
+			granted = "No"
+		}
+
+		tableData = append(tableData, []string{priv.Name, granted})
+	}
+
+	color.Green("\nDatabase privileges: %s\n", selectedDatabase)
+	err = pterm.DefaultTable.WithHasHeader().WithBoxed().WithData(tableData).Render()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func updateDatabasePrivileges(authService *services.AuthorizationService, users []services.UserInfo, id int) error {
+
+	var options []string
+	var defaults []string
+
+	for _, v := range services.DatabasePrivilegesSet {
+
+		value := maps.Values(v)[0]
+
+		options = append(options, value)
+	}
+
+	databases, err := authService.GetAllDatabases()
+	if err != nil {
+		return err
+	}
+
+	selectedDatabase, _ := pterm.DefaultInteractiveSelect.WithOptions(databases).Show("Choose a database")
+
+	privs, err := authService.GetDatabasePrivileges(users[id].Username, users[id].Host, selectedDatabase)
+	if err != nil {
+		return err
+	}
+
+	for _, priv := range privs {
+
+		if priv.Granted == "N" {
+			continue
+		}
+
+		idx := slices.IndexFunc(services.DatabasePrivilegesSet, func(m map[string]string) bool {
+
+			key := maps.Keys(m)[0]
+
+			return key == priv.Name
+		})
+
+		value := maps.Values(services.DatabasePrivilegesSet[idx])[0]
+
+		defaults = append(defaults, value)
+	}
+
+	selectedPrivileges, _ := pterm.DefaultInteractiveMultiselect.WithOptions(options).WithMaxHeight(15).WithDefaultOptions(defaults).Show()
+
+	err = authService.UpdateDatabasePrivileges(users[id].Username, users[id].Host, selectedDatabase, selectedPrivileges)
+	if err != nil {
+		return err
+	}
+
+	color.Green("\nDatabase privileges successfully updated for '%s' on '%s'\n", users[id].Username, selectedDatabase)
+	return nil
+}
+
+func showTableColumnPrivileges(authService *services.AuthorizationService, users []services.UserInfo, id int) error {
+	databases, err := authService.GetAllDatabases()
+	if err != nil {
+		return err
+	}
+
+	selectedDatabase, _ := pterm.DefaultInteractiveSelect.WithOptions(databases).Show("Choose a database")
+
+	tables, err := authService.GetAllDatabaseTables(selectedDatabase)
+	if err != nil {
+		return err
+	}
+
+	selectedTable, _ := pterm.DefaultInteractiveSelect.WithOptions(tables).WithMaxHeight(10).Show("Choose a table")
+
+	tablePrivileges, columnPrivileges, err := authService.GetTablePrivileges(users[id].Username, users[id].Host, selectedDatabase, selectedTable)
+	if err != nil {
+		return err
+	}
+
+	tableData := pterm.TableData{
+		{"Name", "Granted"},
+	}
+
+	for _, priv := range tablePrivileges {
+
+		tableData = append(tableData, []string{priv.Name, priv.Granted})
+	}
+
+	color.Green("\nTable privileges: %s\n", selectedTable)
+	err = pterm.DefaultTable.WithHasHeader().WithBoxed().WithData(tableData).Render()
+	if err != nil {
+		return err
+	}
+
+	tableData = pterm.TableData{
+		{"Name", "Granted"},
+	}
+
+	for _, priv := range columnPrivileges {
+
+		tableData = append(tableData, []string{priv.Name, priv.Granted})
+	}
+
+	color.Green("\nColumn privileges: %s\n", selectedTable)
+	err = pterm.DefaultTable.WithHasHeader().WithBoxed().WithData(tableData).Render()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

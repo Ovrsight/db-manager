@@ -22,5 +22,13 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.AddCommand(backupCmd, recoverCmd, users.CreateCmd, users.ListCmd, users.UpdateCmd, users.DeleteCmd, users.ViewPrivilegesCmd)
+	rootCmd.AddCommand(
+		backupCmd,
+		recoverCmd,
+		users.CreateCmd,
+		users.ListCmd,
+		users.UpdateCmd,
+		users.DeleteCmd,
+		users.PrivilegesCmd,
+	)
 }

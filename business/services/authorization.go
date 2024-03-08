@@ -19,8 +19,61 @@ type Privilege struct {
 	Granted string
 }
 
+var GlobalPrivilegesSet = []map[string]string{
+	{"Alter_priv": "ALTER"},
+	{"Alter_routine_priv": "ALTER ROUTINE"},
+	{"Create_priv": "CREATE"},
+	{"Create_role_priv": "CREATE ROLE"},
+	{"Create_routine_priv": "CREATE ROUTINE"},
+	{"Create_tablespace_priv": "CREATE TABLESPACE"},
+	{"Create_tmp_table_priv": "CREATE TEMPORARY TABLES"},
+	{"Create_user_priv": "CREATE USER"},
+	{"Create_view_priv": "CREATE VIEW"},
+	{"Delete_priv": "DELETE"},
+	{"Drop_priv": "DROP"},
+	{"Drop_role_priv": "DROP ROLE"},
+	{"Event_priv": "EVENT"},
+	{"Execute_priv": "EXECUTE"},
+	{"File_priv": "FILE"},
+	{"Grant_priv": "GRANT OPTION"},
+	{"Index_priv": "INDEX"},
+	{"Insert_priv": "INSERT"},
+	{"Lock_tables_priv": "LOCK TABLES"},
+	{"Process_priv": "PROCESS"},
+	{"References_priv": "REFERENCES"},
+	{"Reload_priv": "RELOAD"},
+	{"Repl_client_priv": "REPLICATION CLIENT"},
+	{"Repl_slave_priv": "REPLICATION SLAVE"},
+	{"Select_priv": "SELECT"},
+	{"Show_db_priv": "SHOW DATABASES"},
+	{"Show_view_priv": "SHOW VIEW"},
+	{"Shutdown_priv": "SHUTDOWN"},
+	{"Super_priv": "SUPER"},
+	{"Trigger_priv": "TRIGGER"},
+	{"Update_priv": "UPDATE"},
+}
+var DatabasePrivilegesSet = []map[string]string{
+	{"Select_priv": "Select"},
+	{"Insert_priv": "Insert"},
+	{"Update_priv": "Update"},
+	{"Delete_priv": "Delete"},
+	{"Create_priv": "Create"},
+	{"Drop_priv": "Drop"},
+	{"Grant_priv": "Grant"},
+	{"References_priv": "References"},
+	{"Index_priv": "Index"},
+	{"Alter_priv": "Alter"},
+	{"Create_tmp_table_priv": "Create Temporary Table"},
+	{"Lock_tables_priv": "Lock Tables"},
+	{"Create_view_priv": "Create View"},
+	{"Execute_priv": "Execute"},
+	{"Event_priv": "Event"},
+	{"Trigger_priv": "Trigger"},
+	{"Show_view_priv": "Show View"},
+	{"Create_routine_priv": "Create Routine"},
+	{"Alter_routine_priv": "Alter Routine"},
+}
 var tablePrivilegesSet = [13]string{"Select", "Insert", "Update", "Delete", "Create", "Drop", "Grant", "References", "Index", "Alter", "Create View", "Show view", "Trigger"}
-var columnPrivilegesSet = [4]string{"Select", "Insert", "Update", "References"}
 
 func InitAuthorizationService() (*AuthorizationService, error) {
 	selectedRdbms := os.Getenv("RDBMS")
@@ -353,6 +406,95 @@ func (as *AuthorizationService) GetAllDatabaseTables(database string) ([]string,
 
 	return tables, nil
 
+}
+
+func (as *AuthorizationService) UpdateGlobalPrivileges(username, host string, privileges []string) error {
+
+	tx, err := as.DB.Begin()
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(fmt.Sprintf("REVOKE ALL PRIVILEGES ON *.* FROM '%s'@'%s'", username, host))
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	selectedPrivileges := strings.Join(privileges, ",")
+
+	query := fmt.Sprintf("GRANT %s ON *.* TO '%s'@'%s'", selectedPrivileges, username, host)
+
+	_, err = tx.Exec(query)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	_, err = tx.Exec("FLUSH PRIVILEGES")
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return nil
+}
+
+func (as *AuthorizationService) UpdateDatabasePrivileges(username, host, database string, privileges []string) error {
+
+	row := as.DB.QueryRow(`SELECT Select_priv
+										FROM mysql.db
+										WHERE User = ? AND Host = ? AND Db = ?`, username, host, database)
+	err := row.Err()
+
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+
+	alreadyHasPrivileges := errors.Is(err, sql.ErrNoRows)
+
+	tx, err := as.DB.Begin()
+	if err != nil {
+		return err
+	}
+
+	if alreadyHasPrivileges {
+		_, err = tx.Exec(fmt.Sprintf("REVOKE ALL PRIVILEGES ON %s.* FROM '%s'@'%s'", database, username, host))
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	selectedPrivileges := strings.Join(privileges, ",")
+
+	query := fmt.Sprintf("GRANT %s ON %s.* TO '%s'@'%s'", selectedPrivileges, database, username, host)
+
+	_, err = tx.Exec(query)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	_, err = tx.Exec("FLUSH PRIVILEGES")
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return nil
 }
 
 func (as *AuthorizationService) Close() error {
