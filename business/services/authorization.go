@@ -73,7 +73,21 @@ var DatabasePrivilegesSet = []map[string]string{
 	{"Create_routine_priv": "Create Routine"},
 	{"Alter_routine_priv": "Alter Routine"},
 }
-var tablePrivilegesSet = [13]string{"Select", "Insert", "Update", "Delete", "Create", "Drop", "Grant", "References", "Index", "Alter", "Create View", "Show view", "Trigger"}
+var TablePrivilegesSet = []map[string]string{
+	{"Select": "Select"},
+	{"Insert": "Insert"},
+	{"Update": "Update"},
+	{"Delete": "Delete"},
+	{"Create": "Create"},
+	{"Drop": "Drop"},
+	{"Grant": "Grant Option"},
+	{"References": "References"},
+	{"Index": "Index"},
+	{"Alter": "Alter"},
+	{"Create View": "Create View"},
+	{"Show view": "Show view"},
+	{"Trigger": "Trigger"},
+}
 
 func InitAuthorizationService() (*AuthorizationService, error) {
 	selectedRdbms := os.Getenv("RDBMS")
@@ -268,22 +282,21 @@ func (as *AuthorizationService) GetDatabasePrivileges(username, host, database s
 	return privileges, nil
 }
 
-func (as *AuthorizationService) GetTablePrivileges(username, host, database, table string) ([]Privilege, []Privilege, error) {
+func (as *AuthorizationService) GetTablePrivileges(username, host, database, table string) ([]Privilege, error) {
 
-	row := as.DB.QueryRow(`SELECT	Table_priv,Column_priv
+	row := as.DB.QueryRow(`SELECT	Table_priv
 										FROM mysql.tables_priv
 										WHERE User = ? AND Host = ? AND Db = ? AND Table_name = ?`, username, host, database, table)
 
 	if err := row.Err(); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var tablePriv string
-	var columnPriv string
 
-	err := row.Scan(&tablePriv, &columnPriv)
+	err := row.Scan(&tablePriv)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, nil, err
+		return nil, err
 	}
 
 	tablePrivileges := append(
@@ -303,16 +316,7 @@ func (as *AuthorizationService) GetTablePrivileges(username, host, database, tab
 		Privilege{Name: "Trigger", Granted: "No"},
 	)
 
-	columnPrivileges := append(
-		[]Privilege{},
-		Privilege{Name: "Select", Granted: "No"},
-		Privilege{Name: "Insert", Granted: "No"},
-		Privilege{Name: "Update", Granted: "No"},
-		Privilege{Name: "References", Granted: "No"},
-	)
-
 	tblPrivs := strings.Split(tablePriv, ",")
-	clsPrivs := strings.Split(columnPriv, ",")
 
 	for _, v := range tblPrivs {
 
@@ -326,19 +330,7 @@ func (as *AuthorizationService) GetTablePrivileges(username, host, database, tab
 
 	}
 
-	for _, v := range clsPrivs {
-
-		idx := slices.IndexFunc(columnPrivileges, func(privilege Privilege) bool {
-			return privilege.Name == v
-		})
-
-		if idx != -1 {
-			columnPrivileges[idx].Granted = "Yes"
-		}
-
-	}
-
-	return tablePrivileges, columnPrivileges, nil
+	return tablePrivileges, nil
 }
 
 func (as *AuthorizationService) GetAllDatabases() ([]string, error) {
@@ -448,16 +440,21 @@ func (as *AuthorizationService) UpdateGlobalPrivileges(username, host string, pr
 
 func (as *AuthorizationService) UpdateDatabasePrivileges(username, host, database string, privileges []string) error {
 
-	row := as.DB.QueryRow(`SELECT Select_priv
+	var dest string
+
+	err := as.DB.QueryRow(`SELECT Select_priv
 										FROM mysql.db
-										WHERE User = ? AND Host = ? AND Db = ?`, username, host, database)
-	err := row.Err()
+										WHERE User = ? AND Host = ? AND Db = ?`, username, host, database).Scan(&dest)
 
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
 
-	alreadyHasPrivileges := errors.Is(err, sql.ErrNoRows)
+	alreadyHasPrivileges := err == nil
+
+	if !alreadyHasPrivileges && len(privileges) == 0 {
+		return nil
+	}
 
 	tx, err := as.DB.Begin()
 	if err != nil {
@@ -472,14 +469,78 @@ func (as *AuthorizationService) UpdateDatabasePrivileges(username, host, databas
 		}
 	}
 
-	selectedPrivileges := strings.Join(privileges, ",")
+	if len(privileges) > 0 {
 
-	query := fmt.Sprintf("GRANT %s ON %s.* TO '%s'@'%s'", selectedPrivileges, database, username, host)
+		selectedPrivileges := strings.Join(privileges, ",")
 
-	_, err = tx.Exec(query)
+		query := fmt.Sprintf("GRANT %s ON %s.* TO '%s'@'%s'", selectedPrivileges, database, username, host)
+
+		_, err = tx.Exec(query)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	_, err = tx.Exec("FLUSH PRIVILEGES")
 	if err != nil {
 		tx.Rollback()
 		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return nil
+}
+
+func (as *AuthorizationService) UpdateTablePrivileges(username, host, database, table string, privileges []string) error {
+
+	var dest string
+
+	err := as.DB.QueryRow(`SELECT Table_priv
+										FROM mysql.tables_priv
+										WHERE User = ? AND Host = ? AND Db = ? AND Table_name = ?`, username, host, database, table).Scan(&dest)
+
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+
+	alreadyHasPrivileges := err == nil
+
+	if !alreadyHasPrivileges && len(privileges) == 0 {
+		return nil
+	}
+
+	tx, err := as.DB.Begin()
+	if err != nil {
+		return err
+	}
+
+	if alreadyHasPrivileges {
+
+		_, err = tx.Exec(fmt.Sprintf("REVOKE ALL PRIVILEGES ON %s.%s FROM '%s'@'%s'", database, table, username, host))
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	if len(privileges) > 0 {
+		selectedPrivileges := strings.Join(privileges, ",")
+
+		fmt.Println(selectedPrivileges)
+
+		query := fmt.Sprintf("GRANT %s ON %s.%s TO '%s'@'%s'", selectedPrivileges, database, table, username, host)
+
+		_, err = tx.Exec(query)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
 	}
 
 	_, err = tx.Exec("FLUSH PRIVILEGES")

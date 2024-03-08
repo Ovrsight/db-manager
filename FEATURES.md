@@ -16,7 +16,7 @@
   - [x] Update user
   - [x] Delete user
   - [x] View user details(everything possible including privileges)
-  - [ ] Add/Remove privileges on a specific user
+  - [x] Add/Remove privileges on a specific user
 - [ ] Configuration
 - [ ] Monitoring using [prometheus](https://prometheus.io/)
 - [ ] Add support for running as a service

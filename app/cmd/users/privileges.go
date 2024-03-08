@@ -109,12 +109,16 @@ $ oversight users:privileges`,
 			}
 		case options[2] == selectedOption && !update:
 
-			err = showTableColumnPrivileges(authService, users, id)
+			err = showTablePrivileges(authService, users, id)
 			if err != nil {
 				return err
 			}
 		case options[2] == selectedOption && update:
-			color.Yellow("Not yet implemented")
+
+			err = updateTablePrivileges(authService, users, id)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -275,6 +279,10 @@ func updateDatabasePrivileges(authService *services.AuthorizationService, users 
 			return key == priv.Name
 		})
 
+		if idx == -1 {
+			continue
+		}
+
 		value := maps.Values(services.DatabasePrivilegesSet[idx])[0]
 
 		defaults = append(defaults, value)
@@ -291,7 +299,18 @@ func updateDatabasePrivileges(authService *services.AuthorizationService, users 
 	return nil
 }
 
-func showTableColumnPrivileges(authService *services.AuthorizationService, users []services.UserInfo, id int) error {
+func updateTablePrivileges(authService *services.AuthorizationService, users []services.UserInfo, id int) error {
+
+	var tableOptions []string
+	var tableDefaults []string
+
+	for _, v := range services.TablePrivilegesSet {
+
+		value := maps.Values(v)[0]
+
+		tableOptions = append(tableOptions, value)
+	}
+
 	databases, err := authService.GetAllDatabases()
 	if err != nil {
 		return err
@@ -306,7 +325,61 @@ func showTableColumnPrivileges(authService *services.AuthorizationService, users
 
 	selectedTable, _ := pterm.DefaultInteractiveSelect.WithOptions(tables).WithMaxHeight(10).Show("Choose a table")
 
-	tablePrivileges, columnPrivileges, err := authService.GetTablePrivileges(users[id].Username, users[id].Host, selectedDatabase, selectedTable)
+	tablePrivs, err := authService.GetTablePrivileges(users[id].Username, users[id].Host, selectedDatabase, selectedTable)
+	if err != nil {
+		return err
+	}
+
+	for _, priv := range tablePrivs {
+
+		if priv.Granted == "No" {
+			continue
+		}
+
+		idx := slices.IndexFunc(services.TablePrivilegesSet, func(m map[string]string) bool {
+
+			key := maps.Keys(m)[0]
+
+			return key == priv.Name
+		})
+
+		if idx == -1 {
+			continue
+		}
+
+		value := maps.Values(services.TablePrivilegesSet[idx])[0]
+
+		tableDefaults = append(tableDefaults, value)
+	}
+
+	selectedPrivileges, _ := pterm.DefaultInteractiveMultiselect.WithOptions(tableOptions).WithMaxHeight(15).WithDefaultOptions(tableDefaults).Show()
+
+	err = authService.UpdateTablePrivileges(users[id].Username, users[id].Host, selectedDatabase, selectedTable, selectedPrivileges)
+	if err != nil {
+		return err
+	}
+
+	color.Green("\nTable privileges successfully updated for '%s' on '%s.%s'\n", users[id].Username, selectedDatabase, selectedTable)
+
+	return nil
+}
+
+func showTablePrivileges(authService *services.AuthorizationService, users []services.UserInfo, id int) error {
+	databases, err := authService.GetAllDatabases()
+	if err != nil {
+		return err
+	}
+
+	selectedDatabase, _ := pterm.DefaultInteractiveSelect.WithOptions(databases).Show("Choose a database")
+
+	tables, err := authService.GetAllDatabaseTables(selectedDatabase)
+	if err != nil {
+		return err
+	}
+
+	selectedTable, _ := pterm.DefaultInteractiveSelect.WithOptions(tables).WithMaxHeight(10).Show("Choose a table")
+
+	tablePrivileges, err := authService.GetTablePrivileges(users[id].Username, users[id].Host, selectedDatabase, selectedTable)
 	if err != nil {
 		return err
 	}
@@ -321,21 +394,6 @@ func showTableColumnPrivileges(authService *services.AuthorizationService, users
 	}
 
 	color.Green("\nTable privileges: %s\n", selectedTable)
-	err = pterm.DefaultTable.WithHasHeader().WithBoxed().WithData(tableData).Render()
-	if err != nil {
-		return err
-	}
-
-	tableData = pterm.TableData{
-		{"Name", "Granted"},
-	}
-
-	for _, priv := range columnPrivileges {
-
-		tableData = append(tableData, []string{priv.Name, priv.Granted})
-	}
-
-	color.Green("\nColumn privileges: %s\n", selectedTable)
 	err = pterm.DefaultTable.WithHasHeader().WithBoxed().WithData(tableData).Render()
 	if err != nil {
 		return err
