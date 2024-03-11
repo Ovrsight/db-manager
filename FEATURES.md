@@ -17,7 +17,7 @@
   - [x] Delete user
   - [x] View user details(everything possible including privileges)
   - [x] Add/Remove privileges on a specific user
-- [ ] Configuration
+- [x] Configuration
 - [ ] Monitoring using [prometheus](https://prometheus.io/)
 - [ ] Add support for running as a service
 - [ ] Deploy the first version ever of **Oversight**

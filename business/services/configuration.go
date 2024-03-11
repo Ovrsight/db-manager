@@ -2,8 +2,12 @@ package services
 
 import (
 	"database/sql"
+	"fmt"
+	"github.com/fatih/color"
 	"github.com/nizigama/ovrsight/foundation/rdbms"
+	"log"
 	"os"
+	"os/exec"
 	"strconv"
 )
 
@@ -82,7 +86,9 @@ func (cs *ConfigurationService) GetConfigurations() (Config, error) {
 		return Config{}, nil
 	}
 
-	cnf.LongQueryTime, _ = strconv.Atoi(value)
+	queryTime, _ := strconv.ParseFloat(value, 64)
+
+	cnf.LongQueryTime = int(queryTime)
 
 	row = cs.Rdbms.QueryRow("SHOW VARIABLES LIKE 'general_log'")
 
@@ -107,5 +113,82 @@ func (cs *ConfigurationService) GetConfigurations() (Config, error) {
 	}
 
 	return cnf, nil
+}
 
+func (cs *ConfigurationService) UpdateConfiguration(config Config) error {
+
+	file, err := os.OpenFile("/etc/mysql/mysql.conf.d/oversight.cnf", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+
+	bindAddress := "0.0.0.0"
+	logSlowQueries := 0
+	logEverything := 0
+
+	if !config.AllowsRemoteConnections {
+		bindAddress = "127.0.0.1"
+	}
+
+	if config.LogsSlowQueries {
+		logSlowQueries = 1
+	}
+
+	if config.GeneralLogging {
+		logEverything = 1
+	}
+
+	configuration := fmt.Sprintf(`
+[mysqld]
+
+max_connections = %d
+bind-address = %s
+port          = %d
+slow-query-log = %d
+general-log = %d
+log-output = TABLE
+long_query_time = %d
+log_error = /var/log/mysql/oversight-error.log
+`, config.MaxConnections, bindAddress, config.ServerPort, logSlowQueries, logEverything, config.LongQueryTime)
+
+	_, err = file.WriteString(configuration)
+	if err != nil {
+		return err
+	}
+
+	// restart mysql
+	programPath, err := exec.LookPath("mysqld")
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command(
+		fmt.Sprintf("%s", programPath),
+		fmt.Sprintf("--validate-config"),
+	)
+
+	data, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Println(string(data))
+		return err
+	}
+
+	programPath, err = exec.LookPath("/etc/init.d/mysql")
+	if err != nil {
+		return err
+	}
+
+	cmd = exec.Command(
+		fmt.Sprintf("%s", programPath),
+		fmt.Sprintf("restart"),
+	)
+
+	color.HiBlue("\nRestarting mysql server...\n")
+	data, err = cmd.CombinedOutput()
+	if err != nil {
+		log.Println(string(data))
+		return err
+	}
+
+	return nil
 }
