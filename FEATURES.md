@@ -9,7 +9,7 @@
     - [x] Clean current implementation to use (services, models & jobs)
   - [x] Add proper error handling when either method or storage fail
   - [x] Recovery
-- [ ] Users & privileges management
+- [x] Users & privileges management
   - [x] Create user
   - [x] List users
   - [x] Validations for create user

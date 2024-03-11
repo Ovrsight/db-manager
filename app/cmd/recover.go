@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// recoverCmd represents the recover command
-var recoverCmd = &cobra.Command{
+// RecoverCmd represents the recover command
+var RecoverCmd = &cobra.Command{
 	Use:   "recover",
 	Short: "Recover a database from a storage engine",
 	Long: `================

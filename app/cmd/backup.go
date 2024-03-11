@@ -11,7 +11,7 @@ import (
 var onlyBinlog bool
 
 // BackupCmd represents the databases.backup command
-var backupCmd = &cobra.Command{
+var BackupCmd = &cobra.Command{
 	Use:   "backup",
 	Short: "Backup a database to a storage engine",
 	Long: `===============
@@ -122,5 +122,5 @@ $ oversight backup demo_db dropbox --binlog`,
 }
 
 func init() {
-	backupCmd.Flags().BoolVarP(&onlyBinlog, "binlog", "b", false, "Backup binary logs of the last full backup")
+	BackupCmd.Flags().BoolVarP(&onlyBinlog, "binlog", "b", false, "Backup binary logs of the last full backup")
 }
