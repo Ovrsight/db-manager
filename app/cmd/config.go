@@ -1,9 +1,10 @@
 package cmd
 
 import (
-	"fmt"
-
+	"github.com/nizigama/ovrsight/business/services"
+	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
+	"strconv"
 )
 
 // ConfigCmd represents the config command
@@ -16,7 +17,37 @@ Eg:
 
 $ oversight config`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("config called")
+
+		pterm.DefaultHeader.
+			WithTextStyle(pterm.NewStyle(pterm.FgLightWhite)).
+			WithBackgroundStyle(pterm.NewStyle(pterm.BgLightBlue)).
+			WithFullWidth(true).
+			Println("Manage server's configurations")
+
+		service, err := services.InitConfigurationService()
+		if err != nil {
+			return err
+		}
+
+		configs, err := service.GetConfigurations()
+		if err != nil {
+			return err
+		}
+
+		tableData := pterm.TableData{
+			{"Configuration", "Value"},
+			{"Max connections", strconv.Itoa(configs.MaxConnections)},
+			{"Allows remote connections", strconv.FormatBool(configs.AllowsRemoteConnections)},
+			{"Server port", strconv.Itoa(configs.ServerPort)},
+			{"Log slow queries", strconv.FormatBool(configs.LogsSlowQueries)},
+			{"General logging", strconv.FormatBool(configs.GeneralLogging)},
+			{"Long query time", strconv.Itoa(configs.LongQueryTime)},
+		}
+
+		err = pterm.DefaultTable.WithHasHeader().WithBoxed().WithData(tableData).Render()
+		if err != nil {
+			return err
+		}
 
 		return nil
 	},
