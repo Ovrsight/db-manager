@@ -19,7 +19,7 @@
   - [x] Add/Remove privileges on a specific user
 - [x] Configuration
 - [ ] Monitoring using [grafana](https://grafana.com/grafana/dashboards/)
-- [ ] Add support for running as a service
+- [ ] Add support for running as a server
 - [ ] Deploy the first version ever of **Oversight**
 - [ ] Replication
 
