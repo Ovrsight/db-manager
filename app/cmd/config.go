@@ -12,13 +12,13 @@ var update bool
 
 // ConfigCmd represents the config command
 var ConfigCmd = &cobra.Command{
-	Use:   "config",
+	Use:   "server:config",
 	Short: "Configure MySQL server",
 	Long: `Configure MySQL server. For example:
 
 Eg:
 
-$ oversight config`,
+$ oversight server:config`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 
 		pterm.DefaultHeader.

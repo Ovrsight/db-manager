@@ -12,7 +12,7 @@ var onlyBinlog bool
 
 // BackupCmd represents the databases.backup command
 var BackupCmd = &cobra.Command{
-	Use:   "backup",
+	Use:   "db:backup",
 	Short: "Backup a database to a storage engine",
 	Long: `===============
 Database backup
@@ -35,13 +35,13 @@ If the storage driver is omitted, the filesystem driver will be used by default.
 Eg:
 
 With storage driver
-$ oversight backup demo_db dropbox
+$ oversight db:backup demo_db dropbox
 
 Without storage driver. Filesystem will be used by default
-$ oversight backup demo_db
+$ oversight db:backup demo_db
 
 Backup only the binary logs
-$ oversight backup demo_db dropbox --binlog`,
+$ oversight db:backup demo_db dropbox --binlog`,
 	Args: func(cmd *cobra.Command, args []string) error {
 
 		if err := cobra.MinimumNArgs(1)(cmd, args); err != nil {

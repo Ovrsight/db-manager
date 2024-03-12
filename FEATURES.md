@@ -18,7 +18,7 @@
   - [x] View user details(everything possible including privileges)
   - [x] Add/Remove privileges on a specific user
 - [x] Configuration
-- [ ] Monitoring using [prometheus](https://prometheus.io/)
+- [ ] Monitoring using [grafana](https://grafana.com/grafana/dashboards/)
 - [ ] Add support for running as a service
 - [ ] Deploy the first version ever of **Oversight**
 - [ ] Replication
