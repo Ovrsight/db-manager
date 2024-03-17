@@ -1,5 +1,5 @@
 # Features
-- [ ] Backup database(s)
+- [x] Backup database(s)
   - [x] Mysql Dump
     - [x] Filesystem
     - [x] Dropbox
@@ -18,7 +18,7 @@
   - [x] View user details(everything possible including privileges)
   - [x] Add/Remove privileges on a specific user
 - [x] Configuration
-- [ ] Monitoring using [grafana](https://grafana.com/grafana/dashboards/)
+- [x] Monitoring using [grafana](https://grafana.com/grafana/dashboards/)
 - [ ] Add support for running as a server
 - [ ] Deploy the first version ever of **Oversight**
 - [ ] Replication
@@ -31,6 +31,7 @@
 - [ ] MySql client
 
 ### Future
+- [ ] Create a temporary database server with read only access from a backup(with point in time)
 - [ ] Ovrsight mysql server <!-- Creating an ovrsight managed Mysql database server from scratch -->
 - [ ] Horizontal scaling
 - [ ] Percona Extra Backup as an additional backup method
