@@ -21,7 +21,7 @@
 - [ ] Improve backup and restoration
 - [ ] Add support for setting up monitoring using [grafana](https://grafana.com/grafana/dashboards/)
 - [ ] Enable/disable Replication
-- [ ] Enable/disable Horizontal scaling
+- [ ] Enable/disable Horizontal scaling using [vitess](https://vitess.io/)
 
 ### Web client
 - [ ] All the features in CLI
