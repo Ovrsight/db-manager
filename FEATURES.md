@@ -18,21 +18,11 @@
   - [x] View user details(everything possible including privileges)
   - [x] Add/Remove privileges on a specific user
 - [x] Configuration
-- [x] Monitoring using [grafana](https://grafana.com/grafana/dashboards/)
-- [ ] Add support for running as a server
-- [ ] Deploy the first version ever of **Oversight**
-- [ ] Replication
-
-### CLI client
-- [ ] All the features above
+- [ ] Improve backup and restoration
+- [ ] Add support for setting up monitoring using [grafana](https://grafana.com/grafana/dashboards/)
+- [ ] Enable/disable Replication
+- [ ] Enable/disable Horizontal scaling
 
 ### Web client
 - [ ] All the features in CLI
-- [ ] MySql client
-
-### Future
-- [ ] Create a temporary database server with read only access from a backup(with point in time)
-- [ ] Ovrsight mysql server <!-- Creating an ovrsight managed Mysql database server from scratch -->
-- [ ] Horizontal scaling
-- [ ] Percona Extra Backup as an additional backup method
-- [ ] MyDumper as an additional backup method
+- [ ] API
